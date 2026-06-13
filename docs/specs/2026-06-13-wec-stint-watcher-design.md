@@ -17,7 +17,10 @@ Veri kaynağı resmi live timing: `livetiming.fiawec.com` (Griiip altyapısı, S
 | Çalışma şekli | **7/24 arka planda** çalışan bağımsız servis (resmi sayfa açık olması gerekmez) |
 | Bildirim olayları | Sıra değişimi, pit giriş/çıkış, tur & tempo (best/fastest lap), sürücü değişimi, gap eşiği, incident/bayrak |
 | Özet türleri | Periyodik **stint özeti** + **olay anı bağlamı** (AI anlatı ve yarış sonu raporu kapsam dışı) |
-| Teknoloji | **Node.js**, tek servis (Express + SQLite + basit frontend) |
+| Teknoloji | **Node.js**, tek servis (Express + dosya bazlı kayıt + basit frontend) |
+| Saklama | **Dosya bazlı** (JSONL olay günlüğü + JSON state snapshot); SQLite değil |
+| Bildirim | Sadece tarayıcı `Notification API` (ses / native masaüstü bildirimi yok) |
+| Araç sayısı | **Tek araç** ile başlanacak; config liste olsa da ilk sürüm tek aracı işler |
 | Deploy | Şimdilik local; tasarım taşınabilir tutulacak (VPS/Pi'ye gidebilir) |
 
 ## Veri kaynağı analizi (mevcut bulgular)
@@ -62,8 +65,9 @@ net arayüzlerle bağlı.
   `gap_threshold`, `flag/incident`. Saf fonksiyon olarak yazılır (state + batch → events),
   böylece kolay test edilir. Her olaya **olay anı bağlamı** eklenir
   (pozisyon, öndeki/arkadaki gap, son tur süresi).
-- **`store`** (SQLite) — `events` (zaman, tür, araç, payload JSON) ve `car_state`
-  (son snapshot) tabloları. 24 saatlik geçmiş; servis restart'ında kaldığı yerden devam.
+- **`store`** (dosya bazlı) — Olaylar `events.jsonl` dosyasına append edilir (her satır bir
+  olay: zaman, tür, araç, payload). Son durum `state.json` snapshot olarak yazılır.
+  24 saatlik geçmiş; servis restart'ında `state.json`'dan kaldığı yerden devam eder.
 - **`scheduler`** — Yapılandırılabilir aralıkla (örn. saat başı veya stint sonunda)
   **periyodik stint özeti** üretir: pozisyon, tur sayısı, en iyi tur, pit sayısı,
   ana rakiplerle gap.
@@ -86,7 +90,7 @@ Tek `config.json`:
 ```jsonc
 {
   "sessionId": 18130,
-  "trackedParticipants": [400061],     // çoklu araç baştan destekli (liste)
+  "trackedParticipants": [400061],     // ilk sürüm tek aracı işler; liste sonraki sürüme hazır
   "events": {                          // per olay türü aç/kapa
     "position_change": true,
     "pit": true,
@@ -114,7 +118,7 @@ Tek `config.json`:
 - **Spike çıktısı = test fixture**: yakalanan gerçek `ReceiveBatch` JSON'ları kaydedilir.
 - `eventDetector` saf fonksiyon → fixture'lara karşı birim testler
   (örn. "art arda gelen şu iki batch `pit_out` üretmeli", "pozisyon 4→3 olunca `position_change`").
-- `store` için round-trip testi (yaz/oku/yeniden başlat).
+- `store` için round-trip testi (events.jsonl append + state.json yaz/oku/yeniden başlat).
 - `feedClient` reconnect mantığı sahte bir hub ile test edilir.
 
 ## İlk adım: keşif spike'ı (ön koşul)
@@ -138,9 +142,11 @@ fixture'larını besler. **Spike tamamlanmadan kalan modüller netleşmez.**
 - Yarış sonu toparlayıcı raporu.
 - Çok kullanıcılı/auth'lu dağıtım, ölçeklenebilir iki katmanlı mimari.
 - Mobil push (ntfy/Pushover) — şimdilik tarayıcı bildirimi yeterli.
+- Ses / native masaüstü bildirimi — sadece tarayıcı `Notification` kullanılacak.
+- Çoklu araç işleme — ilk sürümde tek araç; config yapısı çokluya hazır.
 
-## Açık sorular (onay öncesi)
+## Çözülen sorular (onaylandı)
 
-1. SSE + tarayıcı `Notification` yeterli mi, yoksa ses/native masaüstü bildirimi de istenir mi?
-2. SQLite tamam mı, yoksa dosya bazlı basit kayıt mı tercih edilir?
-3. Baştan çoklu araç desteği mantıklı mı, yoksa tek araçla mı başlanmalı?
+1. **Bildirim:** SSE + tarayıcı `Notification` yeterli; ek ses/native bildirim yok.
+2. **Saklama:** Dosya bazlı (`events.jsonl` + `state.json`); SQLite kullanılmayacak.
+3. **Araç sayısı:** İlk sürüm tek araç işler.
