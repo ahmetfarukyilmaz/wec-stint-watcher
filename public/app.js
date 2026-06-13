@@ -26,6 +26,7 @@ syncThemeIcon();
 
 /* ---------- formatters ---------- */
 function fmtLap(ms) { if (ms == null) return "—"; const s = ms / 1000; const m = Math.floor(s / 60); return `${m}:${(s % 60).toFixed(3).padStart(6, "0")}`; }
+function fmtLapShort(ms) { if (ms == null) return "—"; const s = ms / 1000; const m = Math.floor(s / 60); return `${m}:${(s % 60).toFixed(1).padStart(4, "0")}`; }
 function fmtGap(ms) { return ms == null ? "—" : `${(ms / 1000).toFixed(1)}s`; }
 function fmtDelta(ms) { if (ms == null) return null; const s = (ms / 1000).toFixed(1); return ms > 0 ? `+${s}` : s; }
 function fmtTime(at) { const d = new Date(at); const p = (n) => String(n).padStart(2, "0"); return `${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`; }
@@ -87,13 +88,35 @@ function lapChartSvg(history, bestMs) {
   const area = `${pad},${H - pad} ${pts.join(" ")} ${(W - pad)},${H - pad}`;
   const bestY = (bestMs != null && bestMs >= min && bestMs <= max) ? y(bestMs).toFixed(2) : null;
   const pitDots = laps.map((l, i) => (!l.valid || l.ms >= cap) ? `<circle class="pit" cx="${x(i).toFixed(2)}" cy="${y(Math.min(l.ms, cap)).toFixed(2)}" r="1.4"/>` : "").join("");
+  // her tura görünmez hover noktası: tooltip ile tur no + süre
+  const hover = laps.map((l, i) => {
+    const d = bestMs != null ? fmtDelta(l.ms - bestMs) : null;
+    return `<circle cx="${x(i).toFixed(2)}" cy="${y(vals[i]).toFixed(2)}" r="2.6" fill="transparent"><title>Tur ${l.lap} · ${fmtLap(l.ms)}${d ? ` (en iyiye ${d}sn)` : ""}${l.valid ? "" : " · geçersiz/pit"}</title></circle>`;
+  }).join("");
   const last = laps.length - 1;
   return `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
     <polygon class="area" points="${area}"/>
     ${bestY ? `<line class="best" x1="${pad}" y1="${bestY}" x2="${W - pad}" y2="${bestY}"/>` : ""}
     <polyline class="line" points="${pts.join(" ")}"/>${pitDots}
-    <circle class="dot" cx="${x(last).toFixed(2)}" cy="${y(vals[last]).toFixed(2)}" r="1.8"/>
+    <circle class="dot" cx="${x(last).toFixed(2)}" cy="${y(vals[last]).toFixed(2)}" r="1.8"/>${hover}
   </svg>`;
+}
+
+/* ---------- son turlar (süre çipleri) ---------- */
+function lapChipsHtml(history, bestMs) {
+  const laps = (history || []).filter((l) => l.ms > 0);
+  if (!laps.length) return "";
+  const validMs = laps.filter((l) => l.valid).map((l) => l.ms).sort((a, b) => a - b);
+  const best = bestMs ?? (validMs[0] ?? laps[0].ms);
+  const med = validMs.length ? validMs[Math.floor(validMs.length / 2)] : best; // stint temposu
+  const chips = laps.slice(-22).map((l) => {
+    let cls = "gray";
+    if (!l.valid) cls = "pit";
+    else if (l.ms <= best) cls = "purple";              // en iyi tur
+    else { const d = l.ms - med; cls = d <= -300 ? "green" : d <= 600 ? "gray" : d <= 2000 ? "amber" : "red"; } // stint temposuna göre
+    return `<div class="lap ${cls}" title="Tur ${l.lap} · ${fmtLap(l.ms)}"><div class="ln">L${l.lap}</div><div class="lt">${fmtLapShort(l.ms)}</div></div>`;
+  }).join("");
+  return `<div class="laps">${chips}</div>`;
 }
 
 /* ---------- hava ---------- */
@@ -141,6 +164,7 @@ function carCardHtml(car) {
     <div class="chart">
       <div class="cl"><span>TUR ZAMANI · son ${(car.lapHistory || []).length} tur</span><span>en iyi ${fmtLap(car.bestLapMs)}</span></div>
       ${lapChartSvg(car.lapHistory, car.bestLapMs)}
+      ${lapChipsHtml(car.lapHistory, car.bestLapMs)}
     </div>`;
 }
 
@@ -184,6 +208,8 @@ function renderBoard(state) {
     const p = ensurePanel(pid, car.carNumber);
     p.feedTitle.textContent = `#${car.carNumber ?? pid} · CANLI AKIŞ`;
     p.cardSlot.innerHTML = carCardHtml(car);
+    const laps = p.cardSlot.querySelector(".laps");
+    if (laps) laps.scrollLeft = laps.scrollWidth; // en yeni turu göster
   }
   // artık izlenmeyen panelleri kaldır
   for (const p of Object.keys(panels)) if (!pids.includes(Number(p))) removePanel(Number(p));
