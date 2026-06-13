@@ -15,6 +15,9 @@ const tracked = cfg.trackedParticipants;
 
 // Restart sonrası son durumu yükle
 const stateMap = new Map(Object.entries(store.loadState()).map(([k, v]) => [Number(k), v]));
+// Önceki durumu olan pid'ler "baseline'lı" sayılır; soğuk başlangıçta bir pid'in ilk
+// snapshot'ı olay ÜRETMEDEN baseline olarak alınır (sahte başlangıç bildirimi olmaz).
+const baselined = new Set(stateMap.keys());
 
 const web = createWebServer({ port: cfg.webPort, getState: () => Object.fromEntries(stateMap) });
 
@@ -25,6 +28,12 @@ poll.onSnapshot((snapshot) => {
   for (const pid of tracked) {
     const next = snapshot.get(pid);
     if (!next) continue;
+    if (!baselined.has(pid)) {
+      // İlk görülen pid: baseline olarak kaydet, olay üretme
+      stateMap.set(pid, next);
+      baselined.add(pid);
+      continue;
+    }
     const prev = stateMap.get(pid) ?? makeCarState({ participantId: pid });
     const events = detectEvents(prev, next, cfg, Date.now());
     stateMap.set(pid, next);
