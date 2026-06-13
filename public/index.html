@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>WEC Stint Watcher</title>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 0; background: #111; color: #eee; }
+    header { padding: 12px 16px; background: #1c1c1c; display: flex; justify-content: space-between; align-items: center; }
+    #status { font-size: 13px; padding: 2px 8px; border-radius: 10px; background: #444; }
+    #status.ok { background: #1a7f37; } #status.bad { background: #b62324; }
+    main { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding: 16px; }
+    table { width: 100%; border-collapse: collapse; } td, th { padding: 4px 8px; text-align: left; border-bottom: 1px solid #333; }
+    #events li { padding: 6px 8px; border-bottom: 1px solid #222; font-size: 14px; }
+    button { background: #2563eb; color: #fff; border: 0; padding: 6px 12px; border-radius: 6px; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <header>
+    <strong>WEC Stint Watcher</strong>
+    <span><span id="status">bağlanıyor…</span> <button id="enableNotif">Bildirimleri aç</button></span>
+  </header>
+  <main>
+    <section><h3>Durum</h3><table id="stateTable"><tbody></tbody></table></section>
+    <section><h3>Olaylar</h3><ul id="events" style="list-style:none;padding:0;margin:0;"></ul></section>
+  </main>
+  <script src="app.js"></script>
+</body>
+</html>
