@@ -9,12 +9,40 @@ document.getElementById("enableNotif").addEventListener("click", () => {
 
 function fmtLap(ms) { if (ms == null) return "-"; const s = ms / 1000; const m = Math.floor(s / 60); return `${m}:${(s % 60).toFixed(3).padStart(6, "0")}`; }
 function fmtGap(ms) { return ms == null ? "-" : `${(ms / 1000).toFixed(1)}s`; }
+function fmtDelta(ms) { if (ms == null) return ""; const s = (ms / 1000).toFixed(1); return ms > 0 ? `+${s}` : `${s}`; }
+
+// Ardışık tick'ler arası fark trendi: ↑ yaklaşıyor (fark azalıyor), ↓ uzaklaşıyor
+const lastSeen = {};
+function trend(pid, key, value) {
+  const prev = lastSeen[pid]?.[key];
+  let arrow = "→";
+  if (prev != null && value != null) {
+    if (value < prev - 300) arrow = "↑";       // fark kapanıyor
+    else if (value > prev + 300) arrow = "↓";   // fark açılıyor
+  }
+  return arrow;
+}
 
 function renderState(state) {
   tbody.innerHTML = "";
   for (const car of Object.values(state)) {
+    const pid = car.participantId;
+    const aheadArrow = trend(pid, "gapAheadMs", car.gapAheadMs);
+    const behindArrow = trend(pid, "gapBehindMs", car.gapBehindMs);
+    lastSeen[pid] = { gapAheadMs: car.gapAheadMs, gapBehindMs: car.gapBehindMs };
+    const ahead = car.gapAheadMs == null ? "lider" : `#${car.aheadCarNumber ?? "?"} ${fmtGap(car.gapAheadMs)} ${aheadArrow}`;
+    const behind = car.gapBehindMs == null ? "sonuncu" : `#${car.behindCarNumber ?? "?"} ${fmtGap(car.gapBehindMs)} ${behindArrow}`;
     const tr = document.createElement("tr");
-    tr.innerHTML = `<td>#${car.carNumber ?? car.participantId}</td><td>P${car.position ?? "-"} (sınıf ${car.classPosition ?? "-"})</td><td>son ${fmtLap(car.lastLapMs)}</td><td>en iyi ${fmtLap(car.bestLapMs)}</td><td>önü ${fmtGap(car.gapAheadMs)}</td><td>${car.pitCount ?? 0} pit</td><td>${car.currentDriver ?? "-"}</td>`;
+    tr.innerHTML =
+      `<td>#${car.carNumber ?? pid}</td>` +
+      `<td>P${car.position ?? "-"} (sınıf ${car.classPosition ?? "-"})</td>` +
+      `<td>tur ${car.lapNumber ?? "-"}</td>` +
+      `<td>son ${fmtLap(car.lastLapMs)}</td>` +
+      `<td>en iyi ${fmtLap(car.bestLapMs)}</td>` +
+      `<td>ön: ${ahead}</td>` +
+      `<td>arka: ${behind}</td>` +
+      `<td>${car.pitCount ?? 0} pit</td>` +
+      `<td>${car.currentDriver ?? "-"}</td>`;
     tbody.appendChild(tr);
   }
 }
@@ -25,6 +53,13 @@ const LABELS = {
   pit_out: () => "Pitten çıktı",
   best_lap: (p) => `Yeni kişisel en iyi: ${fmtLap(p.to)}`,
   fastest_lap: (p) => `GENEL EN HIZLI TUR! ${fmtLap(p.bestLapMs)}`,
+  lap_completed: (p) => {
+    const dPrev = p.deltaPrevMs == null ? "" : ` (öncekine ${fmtDelta(p.deltaPrevMs)}sn)`;
+    const dBest = p.deltaBestMs == null ? "" : `, en iyiye ${fmtDelta(p.deltaBestMs)}sn`;
+    return `Tur ${p.lap}: ${fmtLap(p.lapMs)}${dPrev}${dBest}`;
+  },
+  battle_ahead: (p) => `Öndeki #${p.carNumber ?? "?"} ile mücadele kızışıyor (${fmtGap(p.gapMs)})`,
+  battle_behind: (p) => `Arkadaki #${p.carNumber ?? "?"} yaklaşıyor (${fmtGap(p.gapMs)})`,
   driver_change: (p) => `Sürücü değişti: ${p.from} → ${p.to}`,
   gap_threshold: (p) => `Öndeki araca fark ${p.thresholdSeconds}sn altına indi`,
   flag: (p) => `Bayrak: ${p.to}`,
@@ -53,4 +88,9 @@ refreshState();
 const es = new EventSource("/events");
 es.onopen = () => { statusEl.textContent = "bağlı"; statusEl.className = "ok"; };
 es.onerror = () => { statusEl.textContent = "bağlantı koptu"; statusEl.className = "bad"; };
-es.onmessage = (e) => { addEvent(JSON.parse(e.data)); refreshState(); };
+es.onmessage = (e) => {
+  const ev = JSON.parse(e.data);
+  if (ev.type === "tick") { renderState(ev.state); return; } // canlı güncelleme, bildirim yok
+  addEvent(ev);
+  refreshState();
+};

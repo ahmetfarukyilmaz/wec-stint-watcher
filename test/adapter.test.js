@@ -68,3 +68,52 @@ test("currentDriver currentDriverId -> drivers[].externalDriverID ile çözülü
   const car = adaptSnapshot(snap, [9]).get(9);
   assert.equal(car.currentDriver, "B");
 });
+
+test("lapNumber pid'in en yüksek lapNumber'ından gelir", () => {
+  const snap = {
+    ranks: [{ pid: 9, overallPosition: 1, position: 1, carNumber: "9", classId: "X" }],
+    gaps: [], bestLaps: [], pitIn: [], pitOut: [], participants: [], flags: [],
+    laps: [{ pid: 9, lapNumber: 5, lapTimeMillis: 208000 }, { pid: 9, lapNumber: 7, lapTimeMillis: 207000 }],
+  };
+  assert.equal(adaptSnapshot(snap, [9]).get(9).lapNumber, 7);
+});
+
+test("sınıf komşuları: gapBehind ve ön/arka araç no türetilir", () => {
+  // Sınıf X: P1=araç A (pid 1), P2=takip edilen (pid 9), P3=araç C (pid 3)
+  const snap = {
+    ranks: [
+      { pid: 1, overallPosition: 1, position: 1, carNumber: "A", classId: "X" },
+      { pid: 9, overallPosition: 2, position: 2, carNumber: "9", classId: "X" },
+      { pid: 3, overallPosition: 3, position: 3, carNumber: "C", classId: "X" },
+    ],
+    gaps: [
+      { pid: 9, gapToAheadMillis: 1500, gapToFirstMillis: 1500 },
+      { pid: 3, gapToAheadMillis: 2200, gapToFirstMillis: 3700 }, // arkadaki C'nin bize farkı = bizim arka farkımız
+    ],
+    laps: [], bestLaps: [], pitIn: [], pitOut: [], participants: [], flags: [],
+  };
+  const car = adaptSnapshot(snap, [9]).get(9);
+  assert.equal(car.gapAheadMs, 1500);
+  assert.equal(car.gapBehindMs, 2200);
+  assert.equal(car.aheadCarNumber, "A");
+  assert.equal(car.behindCarNumber, "C");
+});
+
+test("sınıf lideriyse aheadCarNumber/gapAhead null; sonuncuysa behind null", () => {
+  const snap = {
+    ranks: [
+      { pid: 9, overallPosition: 1, position: 1, carNumber: "9", classId: "X" },
+      { pid: 3, overallPosition: 2, position: 2, carNumber: "C", classId: "X" },
+    ],
+    gaps: [{ pid: 3, gapToAheadMillis: 2200, gapToFirstMillis: 2200 }],
+    laps: [], bestLaps: [], pitIn: [], pitOut: [], participants: [], flags: [],
+  };
+  const leader = adaptSnapshot(snap, [9]).get(9);
+  assert.equal(leader.aheadCarNumber, null);
+  assert.equal(leader.gapBehindMs, 2200);
+  assert.equal(leader.behindCarNumber, "C");
+
+  const last = adaptSnapshot(snap, [3]).get(3);
+  assert.equal(last.behindCarNumber, null);
+  assert.equal(last.gapBehindMs, null);
+});
