@@ -367,6 +367,7 @@ function addEvent(ev, silent = false) {
   li.innerHTML = `<div class="ico">${meta.ico}</div><div class="body"><div class="txt">${meta.txt}</div></div><div class="time">${fmtTime(ev.at)}</div>`;
   feedEl.prepend(li);
   while (feedEl.children.length > 120) feedEl.lastChild.remove();
+  if (isGlobal) updateGfCount();
   if (!silent && NOTIFY.has(ev.type) && "Notification" in window && Notification.permission === "granted") {
     const title = isGlobal ? "WEC · Yarış Kontrol" : `#${carNumbers[ev.participantId] ?? ev.participantId} · WEC`;
     new Notification(title, { body: meta.txt.replace(/<[^>]+>/g, "") });
@@ -423,6 +424,19 @@ boardEl.addEventListener("click", (e) => {
   fetch("/api/tracked", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) })
     .then(() => { if (pinned) { delete lastSeen[pid]; } refreshState(); });
 });
+
+/* ---------- genel feed: katla/aç + sayaç ---------- */
+const gfTitle = document.getElementById("gfTitle");
+const gfCount = document.getElementById("gfCount");
+if (localStorage.getItem("sw-gf-collapsed") === "1") globalfeedEl.classList.add("collapsed");
+gfTitle.addEventListener("click", () => {
+  const c = globalfeedEl.classList.toggle("collapsed");
+  localStorage.setItem("sw-gf-collapsed", c ? "1" : "0");
+});
+function updateGfCount() {
+  const n = [...globalEventsEl.children].filter((li) => !li.classList.contains("empty")).length;
+  gfCount.textContent = n ? `(${n})` : "";
+}
 
 /* ---------- sekmeler + sıralama ---------- */
 const standingsEl = document.getElementById("standings");

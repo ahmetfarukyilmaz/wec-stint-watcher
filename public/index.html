@@ -140,9 +140,15 @@
 
     /* ---------- genel / yarış kontrol feed'i ---------- */
     #globalfeed { max-width: 1500px; margin: 0 auto; padding: 16px 26px 0; }
-    #globalfeed .gf-title { font-size: 11px; letter-spacing: 3px; text-transform: uppercase; color: var(--dim); margin-bottom: 10px; }
-    .feed.gf { flex-direction: row; flex-wrap: wrap; max-height: none; gap: 8px; }
-    .feed.gf .ev { flex: 1 1 320px; min-width: 280px; }
+    #globalfeed .gf-title { font-size: 11px; letter-spacing: 3px; text-transform: uppercase; color: var(--dim); margin-bottom: 10px; cursor: pointer; user-select: none; display: inline-flex; align-items: center; gap: 8px; }
+    #globalfeed .gf-title:hover { color: var(--txt); }
+    #globalfeed .gf-title .caret { transition: transform .15s; }
+    #globalfeed.collapsed .gf-title .caret { transform: rotate(-90deg); }
+    #globalfeed.collapsed .feed { display: none; }
+    #globalfeed .gf-count { color: var(--dimmer); }
+    /* tek satır yatay kayan şerit — ekranı kaplamaz */
+    .feed.gf { flex-direction: row; flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; max-height: none; gap: 8px; padding-bottom: 8px; }
+    .feed.gf .ev { flex: 0 0 auto; max-width: 460px; }
     .feed.gf .empty { padding: 6px 0; }
 
     /* ---------- sekmeler ---------- */
@@ -367,7 +373,7 @@
   </nav>
 
   <section id="globalfeed">
-    <div class="gf-title">⚑ Yarış Kontrol · Genel</div>
+    <div class="gf-title" id="gfTitle"><span class="caret">▾</span> ⚑ Yarış Kontrol · Genel <span class="gf-count" id="gfCount"></span></div>
     <ul id="globalEvents" class="feed gf"><li class="empty">Genel olay yok</li></ul>
   </section>
 
