@@ -3,13 +3,14 @@ import express from "express";
 import { fileURLToPath } from "node:url";
 import { dirname, join, resolve } from "node:path";
 
-export function createWebServer({ port, getState, publicDir }) {
+export function createWebServer({ port, getState, getEvents, publicDir }) {
   const app = express();
   const clients = new Set();
   const root = publicDir ?? join(dirname(fileURLToPath(import.meta.url)), "..", "public");
   app.use(express.static(resolve(root)));
 
   app.get("/api/state", (_req, res) => res.json(getState()));
+  app.get("/api/events", (_req, res) => res.json(getEvents ? getEvents() : []));
   app.get("/events", (req, res) => {
     res.writeHead(200, { "Content-Type": "text/event-stream", "Cache-Control": "no-cache", Connection: "keep-alive" });
     res.write(": connected\n\n");

@@ -19,7 +19,11 @@ const stateMap = new Map(Object.entries(store.loadState()).map(([k, v]) => [Numb
 // snapshot'ı olay ÜRETMEDEN baseline olarak alınır (sahte başlangıç bildirimi olmaz).
 const baselined = new Set(stateMap.keys());
 
-const web = createWebServer({ port: cfg.webPort, getState: () => Object.fromEntries(stateMap) });
+const web = createWebServer({
+  port: cfg.webPort,
+  getState: () => Object.fromEntries(stateMap),
+  getEvents: () => store.readEvents().slice(-200), // sayfa açılışında geçmiş akış
+});
 
 const api = createApiClient(cfg);
 const poll = createPollClient(cfg, api);

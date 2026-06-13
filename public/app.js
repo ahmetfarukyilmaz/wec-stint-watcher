@@ -136,7 +136,7 @@ const META = {
 };
 const NOTIFY = new Set(["position_change", "pit_in", "pit_out", "best_lap", "fastest_lap", "battle_ahead", "battle_behind", "driver_change", "gap_threshold", "flag"]);
 
-function addEvent(ev) {
+function addEvent(ev, silent = false) {
   if (ev.type === "connection") {
     statusEl.textContent = ev.payload.status === "connected" ? "canlı" : ev.payload.status;
     statusEl.className = ev.payload.status === "connected" ? "ok" : "bad";
@@ -147,15 +147,23 @@ function addEvent(ev) {
 
   const li = document.createElement("li");
   li.className = "ev" + (ev.type.startsWith("battle") || ev.type === "fastest_lap" ? " flash" : "");
+  if (silent) li.style.animation = "none"; // geçmiş yüklenirken kayma animasyonu yok
   li.style.setProperty("--accent", meta.accent);
   li.innerHTML = `<div class="ico">${meta.ico}</div><div class="body"><div class="txt">${meta.txt}</div></div><div class="time">${fmtTime(ev.at)}</div>`;
   eventsEl.prepend(li);
-  while (eventsEl.children.length > 80) eventsEl.lastChild.remove();
+  while (eventsEl.children.length > 200) eventsEl.lastChild.remove();
 
-  if (NOTIFY.has(ev.type) && "Notification" in window && Notification.permission === "granted") {
+  if (!silent && NOTIFY.has(ev.type) && "Notification" in window && Notification.permission === "granted") {
     const plain = meta.txt.replace(/<[^>]+>/g, "");
     new Notification(`#${ev.participantId} · WEC`, { body: plain });
   }
+}
+
+// Sayfa açılışında sunucudaki geçmiş olayları yükle (kronolojik -> prepend ile en yeni üstte; bildirim yok)
+function loadHistory() {
+  return fetch("/api/events").then((r) => r.json()).then((evs) => {
+    for (const ev of evs) addEvent(ev, true);
+  }).catch(() => {});
 }
 
 /* ---------- SSE ---------- */
@@ -172,15 +180,17 @@ if (location.search.includes("static")) {
     { type: "position_change", participantId: 91, at: t - 120000, payload: { from: 3, to: 2, gained: true } },
     { type: "pit_out", participantId: 91, at: t - 300000, payload: {} },
     { type: "driver_change", participantId: 91, at: t - 360000, payload: { from: "Ayhancan GÜVEN", to: "James COTTINGHAM" } },
-  ].reverse().forEach(addEvent);
+  ].reverse().forEach((ev) => addEvent(ev));
 } else {
-  const es = new EventSource("/events");
-  es.onopen = () => { statusEl.textContent = "canlı"; statusEl.className = "ok"; };
-  es.onerror = () => { statusEl.textContent = "bağlantı koptu"; statusEl.className = "bad"; };
-  es.onmessage = (e) => {
-    const ev = JSON.parse(e.data);
-    if (ev.type === "tick") { renderCars(ev.state); const c = Object.values(ev.state)[0]; if (c) applyFlag(c.flag); return; }
-    if (ev.type === "flag") applyFlag(ev.payload.to);
-    addEvent(ev);
-  };
+  loadHistory().finally(() => {
+    const es = new EventSource("/events");
+    es.onopen = () => { statusEl.textContent = "canlı"; statusEl.className = "ok"; };
+    es.onerror = () => { statusEl.textContent = "bağlantı koptu"; statusEl.className = "bad"; };
+    es.onmessage = (e) => {
+      const ev = JSON.parse(e.data);
+      if (ev.type === "tick") { renderCars(ev.state); const c = Object.values(ev.state)[0]; if (c) applyFlag(c.flag); return; }
+      if (ev.type === "flag") applyFlag(ev.payload.to);
+      addEvent(ev);
+    };
+  });
 }
