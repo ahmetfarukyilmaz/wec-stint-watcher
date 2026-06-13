@@ -21,16 +21,28 @@ Veri kaynağı resmi live timing: `livetiming.fiawec.com` (Griiip altyapısı, S
 | Saklama | **Dosya bazlı** (JSONL olay günlüğü + JSON state snapshot); SQLite değil |
 | Bildirim | Sadece tarayıcı `Notification API` (ses / native masaüstü bildirimi yok) |
 | Araç sayısı | **Tek araç** ile başlanacak; config liste olsa da ilk sürüm tek aracı işler |
+| **Veri kaynağı** | **REST polling** (spike sonrası karar — bkz. aşağı). SignalR DEĞİL. |
 | Deploy | Şimdilik local; tasarım taşınabilir tutulacak (VPS/Pi'ye gidebilir) |
 
-## Veri kaynağı analizi (mevcut bulgular)
+## Veri kaynağı analizi (spike tamamlandı — 2026-06-13)
 
-- Sayfa bir Angular SPA. Veri akışı **SignalR** (Microsoft) websocket hub'ı üzerinden.
-- İstemci `JoinGroup("SID-<sessionId>")` ile oturum grubuna katılıyor (`SID-18130`).
-- Güncellemeler `ReceiveBatch` event'iyle `{ items: [...] }` formatında toplu geliyor.
-- Altyapı `insights.griiip.com` / Griiip platformu.
-- **Bilinmeyenler (spike ile çözülecek):** hub'ın tam URL'i, auth gerektirip gerektirmediği,
-  `items` içindeki alan şeması (hangi alan pozisyon, pit durumu, tur süresi vb.).
+Spike sırasında **auth gerektirmeyen, tamamen açık bir REST API** keşfedildi
+(`https://insights.griiip.com`). SignalR (`/live-session-stream`) yalnızca push kanalı;
+aynı veri REST'ten anlık görüntü olarak çekilebiliyor. **Karar: REST polling kullan.**
+
+Detaylı şema ve endpoint listesi: `docs/specs/feed-schema.md`. Özet kullanılacak endpoint'ler
+(hepsi `GET https://insights.griiip.com/...`):
+
+- `/live/ranks/{sid}` — sıralama (`overallPosition`, `position`, `pid`, `carNumber`, `classId`)
+- `/live/gaps/{sid}` — `gapToFirstMillis`, `gapToAheadMillis`
+- `/live/laps/{sid}` — turlar (pid başına son tur = max `lapNumber`)
+- `/live/best-laps/{sid}` — en iyi tur (`lapTimeMillis`, `color` Purple=genel en hızlı)
+- `/live/pit-in/{sid}`, `/live/pit-out/{sid}` — pit olayları (pitCount + inPit türetilir)
+- `/live/participants/{sid}` — sürücü meta (`currentDriverId` → `drivers[].externalDriverID`)
+- `/live/race-flags/{sid}` — bayraklar
+
+Canlı yanıt örnekleri `fixtures/live_*.json` altında (test fixture'ı olarak kullanılacak).
+Takip edilen `pid=400061` = #91 Manthey DK Engineering (Porsche 911 GT3 R LMGT3, LMGT3 sınıfı).
 
 ## Mimari
 
@@ -41,10 +53,10 @@ net arayüzlerle bağlı.
 ┌─────────────────────────────────────────────────────────┐
 │                   wec-stint-watcher (Node)                │
 │                                                           │
-│  [feedClient] ──batch──> [eventDetector] ──event──>       │
-│   SignalR hub             durum diff'i        [store]     │
-│   JoinGroup(SID-18130)    pozisyon/pit/lap     SQLite     │
-│   on ReceiveBatch                                 │       │
+│  [pollClient] ─snapshot─> [eventDetector] ──event──>      │
+│   her N sn REST poll      durum diff'i        [store]     │
+│   ranks/gaps/laps/pit...  pozisyon/pit/lap   jsonl+json   │
+│   -> adapter -> CarState                          │       │
 │                                                   ▼       │
 │  [scheduler] ──stint özeti──────────────────> [webServer] │
 │   periyodik tetik                             Express+SSE │
@@ -56,9 +68,10 @@ net arayüzlerle bağlı.
 
 ### Modüller
 
-- **`feedClient`** — `@microsoft/signalr` ile hub'a bağlanır, oturum grubuna katılır,
-  ham `ReceiveBatch` item'larını yayar (EventEmitter). Bağlantı kopunca otomatik
-  reconnect (exponential backoff). Hub URL + şema eşlemesi config'ten gelir.
+- **`pollClient`** — Her `pollIntervalSeconds`'te bir REST endpoint setini (`ranks`, `gaps`,
+  `laps`, `best-laps`, `pit-in`, `pit-out`, `participants`, `race-flags`) `fetch` ile çeker,
+  `adapter` ile `Map<pid, CarState>`'e birleştirir, anlık görüntüyü (snapshot) yayar.
+  Bir endpoint hata verirse o tur atlanır, servis çökmez.
 - **`eventDetector`** — Takip edilen araç(lar) için son bilinen durumu tutar. Her batch'te
   önceki durumla diff alıp tipli olaylar üretir:
   `position_change`, `pit_in`, `pit_out`, `best_lap`, `fastest_lap`, `driver_change`,
@@ -121,20 +134,11 @@ Tek `config.json`:
 - `store` için round-trip testi (events.jsonl append + state.json yaz/oku/yeniden başlat).
 - `feedClient` reconnect mantığı sahte bir hub ile test edilir.
 
-## İlk adım: keşif spike'ı (ön koşul)
+## Keşif spike'ı (TAMAMLANDI — 2026-06-13)
 
-Asıl yapıya başlamadan önce küçük, atılabilir bir script:
-
-1. Hub'a bağlan (`@microsoft/signalr`), `JoinGroup("SID-<sessionId>")`.
-2. Gelen tüm `ReceiveBatch` item'larını ham JSON olarak dosyaya yaz (birkaç dakika).
-3. Çıktıdan belirle: (a) hub URL + auth gereksinimi, (b) item şeması — hangi alan
-   pozisyon, pit durumu, tur süresi, sürücü, gap.
-
-Bu çıktı hem `config.hub` değerlerini hem de `eventDetector` alan eşlemesini ve test
-fixture'larını besler. **Spike tamamlanmadan kalan modüller netleşmez.**
-
-> Not: Spike, yarış canlıyken (ya da hub aktifken) çalıştırılmalı. Yarış canlı değilse
-> hub URL'i yine bundle/negotiate üzerinden çıkarılabilir ama şema için canlı veri gerekir.
+Spike canlı yarışta yapıldı. Sonuç: açık REST API keşfedildi, şema `docs/specs/feed-schema.md`'ye
+yazıldı, canlı yanıt örnekleri `fixtures/live_*.json`'a kaydedildi. SignalR yerine REST polling'e
+geçildi. Bu fixture'lar `adapter` ve `eventDetector` için test verisi olarak kullanılacak.
 
 ## Kapsam dışı (YAGNI)
 
