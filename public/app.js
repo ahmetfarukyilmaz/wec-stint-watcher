@@ -46,9 +46,9 @@ function applyClock(rc) {
 /* ---------- FIA sürücü kategorisi ---------- */
 const CAT = { P: { label: "PLATINUM", cls: "p" }, G: { label: "GOLD", cls: "g" }, S: { label: "SILVER", cls: "s" }, B: { label: "BRONZE", cls: "b" } };
 function catBadge(cat, full) { const c = CAT[cat]; return c ? `<span class="cat ${c.cls}">${full ? c.label : cat}</span>` : ""; }
-function lineupHtml(drivers) {
+function lineupInner(drivers) {
   if (!drivers || !drivers.length) return "";
-  return `<div class="lineup">${drivers.map((d) => `<span class="d ${d.current ? "current" : ""}">${d.name}${catBadge(d.cat, false)}</span>`).join("")}</div>`;
+  return drivers.map((d) => `<span class="d ${d.current ? "current" : ""}">${d.name}${catBadge(d.cat, false)}</span>`).join("");
 }
 
 /* ---------- lastik rozeti ---------- */
@@ -91,14 +91,6 @@ function rivalHtml(carNo, gapMs, side, arrow) {
 /* ---------- sektörler ---------- */
 const SEC_CLASS = { Purple: "purple", Green: "green", Yellow: "yellow", Gray: "gray" };
 function fmtSec(ms) { return ms == null ? "—" : (ms / 1000).toFixed(3); }
-function sectorsHtml(sectors) {
-  const cells = [1, 2, 3].map((n) => {
-    const s = (sectors || []).find((x) => x.num === n);
-    const cls = s ? (SEC_CLASS[s.color] || "gray") : "gray";
-    return `<div class="sec ${cls}"><div class="sk">S${n}</div><div class="sv">${s ? fmtSec(s.ms) : "—"}</div></div>`;
-  });
-  return `<div class="sectors">${cells.join("")}</div>`;
-}
 
 /* ---------- tur zamanı grafiği (SVG) ---------- */
 function lapChartSvg(history, bestMs) {
@@ -147,81 +139,140 @@ function lapChipsHtml(history, bestMs) {
   return `<div class="laps">${chips}</div>`;
 }
 
-/* ---------- hava ---------- */
-function renderWeather(w) {
-  if (!w) { weatherEl.innerHTML = `<span class="wx">Hava verisi bekleniyor…</span>`; return; }
-  const rain = /rain|shower|storm|wet/i.test(w.sky || "");
-  weatherEl.innerHTML = `
-    <span class="wx ${rain ? "rain" : ""}"><span class="sky">${w.sky ?? "—"}</span></span>
-    <span class="wx">Hava <b>${w.airTemp ?? "—"}°</b></span>
-    <span class="wx">Pist <b>${w.trackTemp ?? "—"}°</b></span>
-    <span class="wx">Nem <b>${w.humidity ?? "—"}%</b></span>
-    <span class="wx">Rüzgar <b>${w.windKph ?? "—"}</b> kph ${w.windDir ?? ""}</span>`;
+/* ---------- yerinde güncelleme yardımcıları (titreme yok) ---------- */
+function setText(el, v) { const s = v == null ? "" : String(v); if (el && el.textContent !== s) el.textContent = s; }
+function setHTML(card, f, html) { if (card.sig[f] !== html) { card.fields[f].innerHTML = html; card.sig[f] = html; } }
+function setClass(el, cls) { if (el && el.className !== cls) el.className = cls; }
+
+function metaInner(car) {
+  return `<span class="cls">${car.classId ?? "—"}</span> · tur ${car.lapNumber ?? "—"} · ${car.pitCount ?? 0} pit ${car.inPit ? "· PİTTE" : ""}${tireHtml(car.tire)}`;
+}
+function pitlineInner(car) {
+  const pit = car.lastPit
+    ? `<span>Son pit <b>tur ${car.lastPit.lap ?? "—"}</b> · <b>${fmtAgo(car.lastPit.at)}</b> · duruş <b>${fmtSecs(car.lastPit.durationMs)}</b></span>`
+    : `<span>Henüz pit yok</span>`;
+  return `${pit}<span>Stint <b class="hl">${car.stintLaps ?? "—"} tur</b></span>`;
 }
 
-/* ---------- araç kartı (panel içeriği) ---------- */
-function carCardHtml(car) {
-  const pid = car.participantId;
+/* ---------- hava (yalnızca değişince güncelle) ---------- */
+let weatherSig = null;
+function renderWeather(w) {
+  const html = !w
+    ? `<span class="wx">Hava verisi bekleniyor…</span>`
+    : `<span class="wx ${/rain|shower|storm|wet/i.test(w.sky || "") ? "rain" : ""}"><span class="sky">${w.sky ?? "—"}</span></span>
+       <span class="wx">Hava <b>${w.airTemp ?? "—"}°</b></span>
+       <span class="wx">Pist <b>${w.trackTemp ?? "—"}°</b></span>
+       <span class="wx">Nem <b>${w.humidity ?? "—"}%</b></span>
+       <span class="wx">Rüzgar <b>${w.windKph ?? "—"}</b> kph ${w.windDir ?? ""}</span>`;
+  if (html !== weatherSig) { weatherEl.innerHTML = html; weatherSig = html; }
+}
+
+/* ---------- kart: bir kez kur, sonra yerinde güncelle ---------- */
+function buildCard(pid) {
+  const el = document.createElement("div");
+  el.className = "car";
+  el.innerHTML = `
+    <button class="rm" data-pid="${pid}" title="Takipten çıkar">✕</button>
+    <div class="car-head">
+      <div class="num" data-f="num"></div>
+      <div class="id">
+        <div class="driver"><span data-f="driver"></span><span data-f="driverCat"></span></div>
+        <div class="meta" data-f="meta"></div>
+        <div class="lineup" data-f="lineup"></div>
+      </div>
+      <div class="posbox"><div class="plabel">Sınıf</div><div class="pval" data-f="classPos"></div><div class="overall" data-f="overall"></div></div>
+    </div>
+    <div class="strip">
+      <div class="cell"><div class="k">Son Tur</div><div class="v"><span data-f="lastLap"></span><span data-f="lastDelta"></span></div></div>
+      <div class="cell"><div class="k">En İyi</div><div class="v" data-f="bestLap"></div></div>
+      <div class="cell"><div class="k" data-f="c3k"></div><div class="v" data-f="c3v"></div></div>
+      <div class="cell"><div class="k">Pit</div><div class="v" data-f="pit"></div></div>
+    </div>
+    <div class="pitline" data-f="pitline"></div>
+    <div class="sectors">
+      <div class="sec" data-f="sec1"><div class="sk">S1</div><div class="sv"></div></div>
+      <div class="sec" data-f="sec2"><div class="sk">S2</div><div class="sv"></div></div>
+      <div class="sec" data-f="sec3"><div class="sk">S3</div><div class="sv"></div></div>
+    </div>
+    <div class="battle">
+      <div class="bl"><span data-f="blAhead"></span><span data-f="blBehind"></span></div>
+      <div class="gauge"><div class="center"></div><div data-f="rAhead"></div><div class="me" data-f="me"></div><div data-f="rBehind"></div></div>
+    </div>
+    <div class="chart">
+      <div class="cl"><span data-f="chartLabel"></span><span data-f="chartBest"></span></div>
+      <div data-f="chartBody"></div>
+    </div>`;
+  const fields = {};
+  el.querySelectorAll("[data-f]").forEach((n) => { fields[n.dataset.f] = n; });
+  return { el, fields, sig: {} };
+}
+
+function updateCard(card, car) {
+  const pid = car.participantId, F = card.fields;
   const aArrow = arrowFor(lastSeen[pid]?.gapAheadMs, car.gapAheadMs);
   const bArrow = arrowFor(lastSeen[pid]?.gapBehindMs, car.gapBehindMs);
   lastSeen[pid] = { gapAheadMs: car.gapAheadMs, gapBehindMs: car.gapBehindMs };
-  const bestDelta = (car.lastLapMs != null && car.bestLapMs != null) ? car.lastLapMs - car.bestLapMs : null;
-  const bd = fmtDelta(bestDelta);
-  const deltaHtml = bd ? `<span class="delta ${bestDelta > 0 ? "up" : "down"}">${bd}</span>` : "";
-  return `<div class="car">
-    <button class="rm" data-pid="${pid}" title="Takipten çıkar">✕</button>
-    <div class="car-head">
-      <div class="num">${car.carNumber ?? pid}</div>
-      <div class="id">
-        <div class="driver">${car.currentDriver ?? "—"} ${catBadge(car.currentDriverCat, true)}</div>
-        <div class="meta"><span class="cls">${car.classId ?? "—"}</span> · tur ${car.lapNumber ?? "—"} · ${car.pitCount ?? 0} pit ${car.inPit ? "· PİTTE" : ""}${tireHtml(car.tire)}</div>
-        ${lineupHtml(car.drivers)}
-      </div>
-      <div class="posbox"><div class="plabel">Sınıf</div><div class="pval">P${car.classPosition ?? "—"}</div><div class="overall">genel ${car.position ?? "—"}.</div></div>
-    </div>
-    <div class="strip">
-      <div class="cell"><div class="k">Son Tur</div><div class="v">${fmtLap(car.lastLapMs)}${deltaHtml}</div></div>
-      <div class="cell"><div class="k">En İyi</div><div class="v ${car.bestLapIsPurple ? "purple" : ""}">${fmtLap(car.bestLapMs)}</div></div>
-      ${car.topSpeedKph
-        ? `<div class="cell"><div class="k">Top Hız</div><div class="v">${car.topSpeedKph}<span class='delta' style='color:var(--dim)'>kph</span></div></div>`
-        : `<div class="cell"><div class="k">Lidere</div><div class="v">${fmtGap(car.gapToFirstMs)}</div></div>`}
-      <div class="cell"><div class="k">Pit</div><div class="v">${car.pitCount ?? 0}</div></div>
-    </div>
-    <div class="pitline">
-      ${car.lastPit
-        ? `<span>Son pit <b>tur ${car.lastPit.lap ?? "—"}</b> · <b>${fmtAgo(car.lastPit.at)}</b> · duruş <b>${fmtSecs(car.lastPit.durationMs)}</b></span>`
-        : `<span>Henüz pit yok</span>`}
-      <span>Stint <b class="hl">${car.stintLaps ?? "—"} tur</b></span>
-    </div>
-    ${sectorsHtml(car.sectors)}
-    <div class="battle">
-      <div class="bl"><span>◄ ÖNDEKİ #${car.aheadCarNumber ?? "—"}</span><span>ARKADAKİ #${car.behindCarNumber ?? "—"} ►</span></div>
-      <div class="gauge"><div class="center"></div>${rivalHtml(car.aheadCarNumber, car.gapAheadMs, "ahead", aArrow)}<div class="me">#${car.carNumber ?? pid}</div>${rivalHtml(car.behindCarNumber, car.gapBehindMs, "behind", bArrow)}</div>
-    </div>
-    <div class="chart">
-      <div class="cl"><span>TUR ZAMANI · son ${(car.lapHistory || []).length} tur</span><span>en iyi ${fmtLap(car.bestLapMs)}</span></div>
-      ${lapChartSvg(car.lapHistory, car.bestLapMs)}
-      ${lapChipsHtml(car.lapHistory, car.bestLapMs)}
-    </div>`;
+
+  setText(F.num, car.carNumber ?? pid);
+  setText(F.driver, car.currentDriver ?? "—");
+  setHTML(card, "driverCat", car.currentDriverCat ? " " + catBadge(car.currentDriverCat, true) : "");
+  setHTML(card, "meta", metaInner(car));
+  setHTML(card, "lineup", lineupInner(car.drivers));
+  setText(F.classPos, "P" + (car.classPosition ?? "—"));
+  setText(F.overall, "genel " + (car.position ?? "—") + ".");
+
+  setText(F.lastLap, fmtLap(car.lastLapMs));
+  const bd = (car.lastLapMs != null && car.bestLapMs != null) ? car.lastLapMs - car.bestLapMs : null;
+  setHTML(card, "lastDelta", bd != null ? `<span class="delta ${bd > 0 ? "up" : "down"}">${fmtDelta(bd)}</span>` : "");
+  setText(F.bestLap, fmtLap(car.bestLapMs));
+  setClass(F.bestLap, "v" + (car.bestLapIsPurple ? " purple" : ""));
+  if (car.topSpeedKph) { setText(F.c3k, "Top Hız"); setHTML(card, "c3v", `${car.topSpeedKph}<span class='delta' style='color:var(--dim)'>kph</span>`); }
+  else { setText(F.c3k, "Lidere"); setHTML(card, "c3v", fmtGap(car.gapToFirstMs)); }
+  setText(F.pit, car.pitCount ?? 0);
+
+  setHTML(card, "pitline", pitlineInner(car));
+
+  for (const [f, n] of [["sec1", 1], ["sec2", 2], ["sec3", 3]]) {
+    const s = (car.sectors || []).find((x) => x.num === n);
+    setClass(F[f], `sec ${s ? (SEC_CLASS[s.color] || "gray") : "gray"}`);
+    setText(F[f].querySelector(".sv"), s ? fmtSec(s.ms) : "—");
+  }
+
+  setText(F.blAhead, `◄ ÖNDEKİ #${car.aheadCarNumber ?? "—"}`);
+  setText(F.blBehind, `ARKADAKİ #${car.behindCarNumber ?? "—"} ►`);
+  setText(F.me, `#${car.carNumber ?? pid}`);
+  setHTML(card, "rAhead", rivalHtml(car.aheadCarNumber, car.gapAheadMs, "ahead", aArrow));
+  setHTML(card, "rBehind", rivalHtml(car.behindCarNumber, car.gapBehindMs, "behind", bArrow));
+
+  // grafik + çipler: yalnızca yeni tur/best gelince yeniden çiz (her tick değil)
+  const chartSig = `${(car.lapHistory || []).length}:${car.lapNumber}:${car.bestLapMs}`;
+  if (card.sig.__chart !== chartSig) {
+    card.sig.__chart = chartSig;
+    setText(F.chartLabel, `TUR ZAMANI · son ${(car.lapHistory || []).length} tur`);
+    setText(F.chartBest, `en iyi ${fmtLap(car.bestLapMs)}`);
+    F.chartBody.innerHTML = lapChartSvg(car.lapHistory, car.bestLapMs) + lapChipsHtml(car.lapHistory, car.bestLapMs);
+    const laps = F.chartBody.querySelector(".laps");
+    if (laps) laps.scrollLeft = laps.scrollWidth;
+  }
 }
 
 /* ---------- panel yönetimi (araç başına kart + feed) ---------- */
-const panels = {}; // pid -> { panel, cardSlot, feedEl }
+const panels = {}; // pid -> { panel, card, feedEl, feedTitle }
 const carNumbers = {}; // pid -> araç no (bildirim başlığı için)
 function ensurePanel(pid, carNumber) {
   if (panels[pid]) return panels[pid];
   const panel = document.createElement("div");
   panel.className = "carpanel";
-  const cardSlot = document.createElement("div");
+  const card = buildCard(pid);
   const feedTitle = document.createElement("div");
   feedTitle.className = "feed-title";
   feedTitle.textContent = `#${carNumber ?? pid} · CANLI AKIŞ`;
   const feedEl = document.createElement("ul");
   feedEl.className = "feed";
   feedEl.innerHTML = `<li class="empty">Henüz olay yok</li>`;
-  panel.append(cardSlot, feedTitle, feedEl);
+  panel.append(card.el, feedTitle, feedEl);
   boardEl.appendChild(panel);
-  panels[pid] = { panel, cardSlot, feedEl, feedTitle };
+  panels[pid] = { panel, card, feedEl, feedTitle };
   return panels[pid];
 }
 function removePanel(pid) {
@@ -243,12 +294,9 @@ function renderBoard(state) {
     const car = state[pid];
     carNumbers[pid] = car.carNumber;
     const p = ensurePanel(pid, car.carNumber);
-    p.feedTitle.textContent = `#${car.carNumber ?? pid} · CANLI AKIŞ`;
-    p.cardSlot.innerHTML = carCardHtml(car);
-    const laps = p.cardSlot.querySelector(".laps");
-    if (laps) laps.scrollLeft = laps.scrollWidth; // en yeni turu göster
+    setText(p.feedTitle, `#${car.carNumber ?? pid} · CANLI AKIŞ`);
+    updateCard(p.card, car); // yerinde güncelleme — DOM yeniden kurulmaz
   }
-  // artık izlenmeyen panelleri kaldır
   for (const p of Object.keys(panels)) if (!pids.includes(Number(p))) removePanel(Number(p));
   const first = state[pids[0]];
   if (first) { renderWeather(first.weather); applyFlag(first.flag); applyClock(first.raceClock); }
