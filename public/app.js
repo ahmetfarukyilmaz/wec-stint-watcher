@@ -8,6 +8,21 @@ document.getElementById("enableNotif").addEventListener("click", () => {
   if ("Notification" in window) Notification.requestPermission();
 });
 
+/* ---------- tema (dark / light) ---------- */
+const themeBtn = document.getElementById("themeToggle");
+function syncThemeIcon() {
+  const light = document.documentElement.getAttribute("data-theme") === "light";
+  themeBtn.textContent = light ? "☀" : "☾";
+}
+themeBtn.addEventListener("click", () => {
+  const light = document.documentElement.getAttribute("data-theme") === "light";
+  if (light) document.documentElement.removeAttribute("data-theme");
+  else document.documentElement.setAttribute("data-theme", "light");
+  localStorage.setItem("sw-theme", light ? "dark" : "light");
+  syncThemeIcon();
+});
+syncThemeIcon();
+
 /* ---------- formatters ---------- */
 function fmtLap(ms) { if (ms == null) return "—"; const s = ms / 1000; const m = Math.floor(s / 60); return `${m}:${(s % 60).toFixed(3).padStart(6, "0")}`; }
 function fmtGap(ms) { return ms == null ? "—" : `${(ms / 1000).toFixed(1)}s`; }

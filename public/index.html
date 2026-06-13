@@ -22,14 +22,38 @@
       --amber: #ffb327;
       --red: #ff3b46;
       --flag: var(--signal);    /* JS bayrak durumuna göre değiştirir */
+      --on-flag: #07080a;       /* bayrak renkli yüzeyler üzerindeki metin (her iki temada koyu) */
       --grid: rgba(255,255,255,.022);
+      --glow-a: rgba(198,255,46,.06);
+      --glow-b: rgba(179,136,255,.05);
+      --header-bg: rgba(7,8,10,.92);
+      color-scheme: dark;
+    }
+    :root[data-theme="light"] {
+      --bg: #eef0ea;
+      --panel: #ffffff;
+      --panel-2: #f6f7f3;
+      --line: #d9ddd3;
+      --line-soft: #e6e9e1;
+      --txt: #14171c;
+      --dim: #5f6670;
+      --dimmer: #9aa0a8;
+      --signal: #2f8f00;        /* koyu yeşil — beyaz üstünde okunur */
+      --purple: #6d28d9;
+      --amber: #b45309;
+      --red: #d32030;
+      --grid: rgba(0,0,0,.035);
+      --glow-a: rgba(47,143,0,.07);
+      --glow-b: rgba(109,40,217,.06);
+      --header-bg: rgba(244,245,240,.9);
+      color-scheme: light;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     html, body { height: 100%; }
     body {
       background:
-        radial-gradient(1200px 600px at 85% -10%, rgba(198,255,46,.06), transparent 60%),
-        radial-gradient(900px 500px at 0% 110%, rgba(179,136,255,.05), transparent 55%),
+        radial-gradient(1200px 600px at 85% -10%, var(--glow-a), transparent 60%),
+        radial-gradient(900px 500px at 0% 110%, var(--glow-b), transparent 55%),
         linear-gradient(var(--grid) 1px, transparent 1px) 0 0 / 100% 34px,
         var(--bg);
       color: var(--txt);
@@ -37,6 +61,7 @@
       min-height: 100%;
       letter-spacing: .2px;
       -webkit-font-smoothing: antialiased;
+      transition: background-color .25s ease, color .25s ease;
     }
     .mono { font-family: "JetBrains Mono", monospace; font-variant-numeric: tabular-nums; }
 
@@ -45,7 +70,7 @@
       position: sticky; top: 0; z-index: 20;
       display: flex; align-items: center; gap: 18px;
       padding: 14px 26px;
-      background: linear-gradient(180deg, rgba(7,8,10,.96), rgba(7,8,10,.78));
+      background: var(--header-bg);
       border-bottom: 1px solid var(--line);
       backdrop-filter: blur(8px);
     }
@@ -77,10 +102,17 @@
 
     button#enableNotif {
       font-family: inherit; font-size: 11px; letter-spacing: 1.5px; text-transform: uppercase;
-      color: var(--bg); background: var(--flag); border: 0; padding: 9px 15px; border-radius: 8px;
+      color: var(--on-flag); background: var(--flag); border: 0; padding: 9px 15px; border-radius: 8px;
       cursor: pointer; font-weight: 700; transition: transform .12s ease, box-shadow .2s ease;
     }
     button#enableNotif:hover { transform: translateY(-1px); box-shadow: 0 6px 22px -6px var(--flag); }
+
+    button#themeToggle {
+      font-family: inherit; font-size: 15px; line-height: 1; color: var(--dim);
+      background: var(--panel); border: 1px solid var(--line); width: 38px; height: 36px;
+      border-radius: 8px; cursor: pointer; transition: color .15s ease, border-color .15s ease, transform .12s ease;
+    }
+    button#themeToggle:hover { color: var(--txt); border-color: var(--dim); transform: translateY(-1px); }
 
     /* ---------- LAYOUT ---------- */
     main { display: grid; grid-template-columns: 1.55fr 1fr; gap: 20px; padding: 22px 26px 40px; max-width: 1380px; margin: 0 auto; }
@@ -103,7 +135,7 @@
     .car-head { display: flex; align-items: center; gap: 18px; }
     .num {
       font-family: "JetBrains Mono", monospace; font-weight: 800; font-size: 34px; line-height: 1;
-      color: var(--bg); background: var(--flag); padding: 12px 14px; border-radius: 12px;
+      color: var(--on-flag); background: var(--flag); padding: 12px 14px; border-radius: 12px;
       min-width: 78px; text-align: center; letter-spacing: -1px; box-shadow: 0 8px 30px -10px var(--flag);
     }
     .id { flex: 1; min-width: 0; }
@@ -132,7 +164,7 @@
     .battle .bl { display: flex; justify-content: space-between; font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: var(--dim); margin-bottom: 9px; }
     .gauge { position: relative; height: 50px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; }
     .gauge .center { position: absolute; left: 50%; top: -4px; bottom: -4px; width: 2px; background: var(--flag); transform: translateX(-50%); box-shadow: 0 0 12px var(--flag); }
-    .gauge .me { position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%); font-family: "JetBrains Mono", monospace; font-weight: 800; font-size: 13px; color: var(--bg); background: var(--flag); padding: 4px 7px; border-radius: 6px; z-index: 2; }
+    .gauge .me { position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%); font-family: "JetBrains Mono", monospace; font-weight: 800; font-size: 13px; color: var(--on-flag); background: var(--flag); padding: 4px 7px; border-radius: 6px; z-index: 2; }
     .rival { position: absolute; top: 50%; transform: translate(-50%,-50%); display: flex; flex-direction: column; align-items: center; gap: 3px; transition: left .6s cubic-bezier(.2,.7,.2,1); }
     .rival .car-no { font-family: "JetBrains Mono", monospace; font-weight: 700; font-size: 12px; padding: 3px 6px; border-radius: 5px; background: var(--panel-2); border: 1px solid var(--line); }
     .rival .gap { font-size: 11px; letter-spacing: .5px; color: var(--dim); white-space: nowrap; }
@@ -163,6 +195,14 @@
     .empty { color: var(--dimmer); font-size: 13px; letter-spacing: 1px; padding: 20px 4px; text-align: center; }
     footer { text-align: center; color: var(--dimmer); font-size: 11px; letter-spacing: 2px; text-transform: uppercase; padding: 10px 0 26px; }
   </style>
+  <script>
+    // Tema'yı paint öncesi uygula (FOUC yok). Varsayılan: dark.
+    (function () {
+      var q = new URLSearchParams(location.search).get("theme");
+      var t = q || localStorage.getItem("sw-theme") || "dark";
+      if (t === "light") document.documentElement.setAttribute("data-theme", "light");
+    })();
+  </script>
 </head>
 <body>
   <header>
@@ -173,6 +213,7 @@
     <div class="spacer"></div>
     <div class="flagpill"><span class="dot"></span><span id="flagText">—</span></div>
     <div class="conn"><span id="status">bağlanıyor</span></div>
+    <button id="themeToggle" title="Tema değiştir" aria-label="Tema değiştir">◐</button>
     <button id="enableNotif">Bildirimleri Aç</button>
   </header>
 
