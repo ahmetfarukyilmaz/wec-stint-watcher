@@ -20,3 +20,21 @@ test("pollOnce snapshot'ı adaptör'den geçirip yayar", async () => {
   assert.equal(got.length, 1);
   assert.equal(got[0].get(9).classPosition, 1);
 });
+
+test("getCars sıralama için zenginleştirilmiş liste verir", async () => {
+  const api = { async fetchAll() {
+    return {
+      ranks: [{ pid: 9, overallPosition: 5, position: 2, carNumber: "9", classId: "LMGT3" }],
+      gaps: [{ pid: 9, gapToFirstMillis: 12000 }], laps: [], bestLaps: [], pitIn: [], pitOut: [],
+      participants: [{ pid: 9, displayName: "TEAM X" }], flags: [],
+    };
+  } };
+  const pc = createPollClient({ trackedParticipants: [], pollIntervalSeconds: 1 }, api);
+  await pc.pollOnce();
+  const c = pc.getCars()[0];
+  assert.equal(c.carNumber, "9");
+  assert.equal(c.overall, 5);
+  assert.equal(c.classPos, 2);
+  assert.equal(c.gapToFirstMs, 12000);
+  assert.equal(c.team, "TEAM X");
+});

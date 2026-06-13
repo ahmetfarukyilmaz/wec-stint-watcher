@@ -375,10 +375,62 @@ boardEl.addEventListener("click", (e) => {
     .then(() => { removePanel(pid); delete lastSeen[pid]; });
 });
 
+/* ---------- sekmeler + sıralama ---------- */
+const standingsEl = document.getElementById("standings");
+let currentView = "board";
+const CLASS_ORDER = { HYPERCAR: 0, LMP2: 1, LMGT3: 2, GTE: 3 };
+
+document.querySelectorAll(".tabs button").forEach((b) => b.addEventListener("click", () => switchView(b.dataset.view)));
+function switchView(v) {
+  currentView = v;
+  document.querySelectorAll(".tabs button").forEach((b) => b.classList.toggle("active", b.dataset.view === v));
+  boardEl.hidden = v !== "board";
+  standingsEl.hidden = v !== "standings";
+  if (v === "standings") renderStandings();
+}
+
+function renderStandings() {
+  Promise.all([
+    fetch("/api/cars").then((r) => r.json()).catch(() => []),
+    fetch("/api/tracked").then((r) => r.json()).catch(() => []),
+  ]).then(([cars, tracked]) => {
+    const trackedSet = new Set((tracked || []).map(Number));
+    const byClass = {};
+    for (const c of cars || []) (byClass[c.classId || "—"] ??= []).push(c);
+    const classes = Object.keys(byClass).sort((a, b) => (CLASS_ORDER[a] ?? 9) - (CLASS_ORDER[b] ?? 9));
+    standingsEl.innerHTML = classes.map((cls) => {
+      const rows = byClass[cls].sort((a, b) => (a.classPos ?? 999) - (b.classPos ?? 999)).map((c) => {
+        const on = trackedSet.has(c.pid);
+        const gap = c.classPos === 1 ? "Lider" : (c.gapToFirstMs > 0 ? fmtGap(c.gapToFirstMs) : "—");
+        return `<tr class="${on ? "tracked" : ""}">
+          <td class="pos">${c.classPos ?? "—"}</td>
+          <td class="no">#${c.carNumber}</td>
+          <td>${c.team ?? "—"}</td>
+          <td class="gap">${gap}</td>
+          <td><button class="add ${on ? "on" : ""}" data-pid="${c.pid}" data-car="${c.carNumber}" title="${on ? "Takipten çıkar" : "Takibe ekle"}">${on ? "✓" : "+"}</button></td>
+        </tr>`;
+      }).join("");
+      return `<div class="stClass">${cls} · ${byClass[cls].length} araç</div>
+        <table class="standings"><thead><tr><th>Sınıf P</th><th>No</th><th>Takım</th><th>Lidere</th><th></th></tr></thead><tbody>${rows}</tbody></table>`;
+    }).join("") || `<div class="board-empty">Veri bekleniyor…</div>`;
+  });
+}
+
+standingsEl.addEventListener("click", (e) => {
+  const btn = e.target.closest(".add");
+  if (!btn) return;
+  const on = btn.classList.contains("on");
+  const body = on ? { remove: Number(btn.dataset.pid) } : { add: btn.dataset.car };
+  fetch("/api/tracked", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) })
+    .then((r) => r.json())
+    .then(() => { if (on) { removePanel(Number(btn.dataset.pid)); delete lastSeen[Number(btn.dataset.pid)]; } renderStandings(); refreshState(); });
+});
+
 /* ---------- init + SSE ---------- */
 function refreshState() { return fetch("/api/state").then((r) => r.json()).then(renderBoard).catch(() => {}); }
 
 loadCars();
+if (new URLSearchParams(location.search).get("view") === "standings") switchView("standings");
 
 if (location.search.includes("static")) {
   refreshState().then(() => {
@@ -404,7 +456,7 @@ if (location.search.includes("static")) {
       es.onerror = () => { statusEl.textContent = "bağlantı koptu"; statusEl.className = "bad"; };
       es.onmessage = (e) => {
         const ev = JSON.parse(e.data);
-        if (ev.type === "tick") { renderBoard(ev.state); return; }
+        if (ev.type === "tick") { renderBoard(ev.state); if (currentView === "standings") renderStandings(); return; }
         if (ev.type === "flag") applyFlag(ev.payload.to);
         addEvent(ev);
       };

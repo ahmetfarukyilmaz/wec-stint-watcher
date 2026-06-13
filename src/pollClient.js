@@ -17,11 +17,16 @@ export function createPollClient(cfg, apiClient, getTracked) {
   function buildCars(snap) {
     const drivers = new Map();
     for (const p of snap.participants ?? []) drivers.set(Number(p.pid), p.displayName ?? p.teamName ?? null);
+    const gap = new Map();
+    for (const g of snap.gaps ?? []) gap.set(Number(g.pid), g.gapToFirstMillis ?? null);
     return (snap.ranks ?? []).map((r) => ({
       pid: Number(r.pid),
       carNumber: r.carNumber ?? null,
       classId: r.classId ?? null,
       team: drivers.get(Number(r.pid)) ?? null,
+      overall: r.overallPosition ?? null,
+      classPos: r.position ?? null,
+      gapToFirstMs: gap.get(Number(r.pid)) ?? null,
     })).filter((c) => c.carNumber != null);
   }
 
