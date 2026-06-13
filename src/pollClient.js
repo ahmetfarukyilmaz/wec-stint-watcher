@@ -5,13 +5,14 @@ import { createScheduler } from "./scheduler.js";
 /**
  * @param {{trackedParticipants:number[], pollIntervalSeconds:number}} cfg
  * @param {{fetchAll: () => Promise<object>}} apiClient
- * @param {() => number[]} [getTracked]  izlenecek pid'leri dinamik veren fonksiyon
+ * @param {(cars:object[]) => number[]} [resolveTracked]  güncel araçlardan efektif izlenecek pid'leri veren fonksiyon
  */
-export function createPollClient(cfg, apiClient, getTracked) {
+export function createPollClient(cfg, apiClient, resolveTracked) {
   const handlers = new Set();
   const emit = (map) => { for (const h of handlers) h(map); };
-  const tracked = getTracked ?? (() => cfg.trackedParticipants);
+  const resolve = resolveTracked ?? (() => cfg.trackedParticipants);
   let cars = []; // tüm araçların hafif listesi (seçici için)
+  let tracked = []; // son efektif takip listesi
   let raceLog = []; // son race log item'ları
 
   function buildCars(snap) {
@@ -34,7 +35,8 @@ export function createPollClient(cfg, apiClient, getTracked) {
     const snap = await apiClient.fetchAll();
     cars = buildCars(snap);
     raceLog = snap.raceLog?.items ?? [];
-    const map = adaptSnapshot(snap, tracked());
+    tracked = resolve(cars); // pinli ∪ otomatik ilk-N
+    const map = adaptSnapshot(snap, tracked);
     emit(map);
     return map;
   }
@@ -44,6 +46,7 @@ export function createPollClient(cfg, apiClient, getTracked) {
   return {
     onSnapshot(cb) { handlers.add(cb); },
     getCars() { return cars; },
+    getTracked() { return tracked; },
     getRaceLog() { return raceLog; },
     pollOnce,
     start() { scheduler.start(); return pollOnce(); }, // ilk poll'u hemen yap

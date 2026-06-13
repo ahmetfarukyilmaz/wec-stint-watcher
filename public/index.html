@@ -145,7 +145,16 @@
     .feed.gf .empty { padding: 6px 0; }
 
     /* ---------- sekmeler ---------- */
-    .tabs { display: flex; gap: 8px; padding: 16px 26px 0; max-width: 1500px; margin: 0 auto; }
+    .tabs { display: flex; gap: 8px; padding: 16px 26px 0; max-width: 1500px; margin: 0 auto; align-items: center; justify-content: space-between; }
+    .tabset { display: flex; gap: 8px; }
+    .smart { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--dim); }
+    .smart .sl { letter-spacing: .5px; }
+    .smart select, .smart input {
+      font-family: inherit; font-size: 12px; color: var(--txt); background: var(--panel);
+      border: 1px solid var(--line); border-radius: 7px; padding: 6px 9px; outline: none;
+    }
+    .smart input { width: 56px; text-align: center; }
+    .smart select:focus, .smart input:focus { border-color: var(--flag); }
     .tabs button {
       font-family: inherit; font-size: 12px; letter-spacing: 2px; text-transform: uppercase; font-weight: 600;
       color: var(--dim); background: transparent; border: 0; border-bottom: 2px solid transparent;
@@ -163,6 +172,7 @@
     table.standings th { font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--dim); font-weight: 600; }
     table.standings td.pos, table.standings td.no, table.standings td.gap { font-family: "JetBrains Mono", monospace; font-weight: 700; }
     table.standings tr.tracked { background: color-mix(in srgb, var(--flag) 8%, transparent); }
+    table.standings .autotag { font-size: 9px; letter-spacing: 1px; text-transform: uppercase; color: var(--bg); background: var(--flag); padding: 1px 5px; border-radius: 4px; margin-left: 6px; }
     table.standings .add {
       font-family: inherit; font-size: 15px; font-weight: 700; line-height: 1; width: 30px; height: 28px; border-radius: 6px;
       border: 1px solid var(--line); background: var(--panel); color: var(--dim); cursor: pointer; transition: all .12s;
@@ -209,8 +219,10 @@
     .lineup .d { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; color: var(--dim); border: 1px solid var(--line); border-radius: 6px; padding: 3px 7px; }
     .lineup .d.current { color: var(--txt); border-color: var(--flag); }
 
-    .rm { position: absolute; top: 12px; right: 12px; z-index: 3; width: 26px; height: 26px; border-radius: 7px; border: 1px solid var(--line); background: var(--panel); color: var(--dim); cursor: pointer; font-size: 14px; line-height: 1; transition: color .15s, border-color .15s; }
-    .rm:hover { color: var(--red); border-color: var(--red); }
+    .pin { position: absolute; top: 12px; right: 12px; z-index: 3; height: 28px; padding: 0 9px; border-radius: 7px; border: 1px solid var(--line); background: var(--panel); color: var(--dimmer); cursor: pointer; font-size: 12px; line-height: 1; transition: all .15s; opacity: .55; }
+    .pin:hover { opacity: 1; color: var(--flag); border-color: var(--flag); }
+    .pin.on { opacity: 1; color: var(--flag); border-color: var(--flag); background: color-mix(in srgb, var(--flag) 12%, var(--panel)); }
+    .pin.on:hover { color: #fff; background: var(--red); border-color: var(--red); }
     .posbox { text-align: right; }
     .posbox .plabel { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: var(--dim); }
     .posbox .pval { font-family: "JetBrains Mono", monospace; font-weight: 800; font-size: 46px; line-height: .9; }
@@ -340,8 +352,16 @@
   <div class="weatherbar" id="weather"></div>
 
   <nav class="tabs">
-    <button data-view="board" class="active">Paneller</button>
-    <button data-view="standings">Sıralama</button>
+    <div class="tabset">
+      <button data-view="board" class="active">Paneller</button>
+      <button data-view="standings">Sıralama</button>
+    </div>
+    <div class="smart">
+      <span class="sl">📌 Akıllı takip</span>
+      <select id="smartClass"><option value="">Kapalı</option></select>
+      <span class="sl">ilk</span>
+      <input id="smartN" type="number" min="0" max="30" value="0" title="Otomatik izlenecek araç sayısı" />
+    </div>
   </nav>
 
   <section id="globalfeed">

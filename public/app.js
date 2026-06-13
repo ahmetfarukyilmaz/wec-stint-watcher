@@ -174,7 +174,7 @@ function buildCard(pid) {
   const el = document.createElement("div");
   el.className = "car";
   el.innerHTML = `
-    <button class="rm" data-pid="${pid}" title="Takipten çıkar">✕</button>
+    <button class="pin" data-f="pin" data-pid="${pid}">📌 Sabitle</button>
     <div class="car-head">
       <div class="num" data-f="num"></div>
       <div class="id">
@@ -216,6 +216,10 @@ function updateCard(card, car) {
   lastSeen[pid] = { gapAheadMs: car.gapAheadMs, gapBehindMs: car.gapBehindMs };
 
   setText(F.num, car.carNumber ?? pid);
+  F.pin.dataset.car = car.carNumber ?? "";
+  F.pin.classList.toggle("on", !!car.pinned);
+  setText(F.pin, car.pinned ? "📌 Sabit" : "📌 Sabitle");
+  F.pin.title = car.pinned ? "Sabitlemeyi kaldır" : "Sabitle — pozisyonu ne olursa olsun kalsın";
   setText(F.driver, car.currentDriver ?? "—");
   setHTML(card, "driverCat", car.currentDriverCat ? " " + catBadge(car.currentDriverCat, true) : "");
   setHTML(card, "meta", metaInner(car));
@@ -355,12 +359,36 @@ function addEvent(ev, silent = false) {
   }
 }
 
-/* ---------- araç ekle/çıkar ---------- */
+/* ---------- araç ekle/çıkar + akıllı takip ---------- */
+const smartClassEl = document.getElementById("smartClass");
+const smartNEl = document.getElementById("smartN");
+
 function loadCars() {
   return fetch("/api/cars").then((r) => r.json()).then((cars) => {
     carList.innerHTML = (cars || []).map((c) => `<option value="${c.carNumber}">${c.classId ?? ""}${c.team ? " · " + c.team : ""}</option>`).join("");
+    // akıllı sınıf seçenekleri (mevcut sınıflar + Genel)
+    const classes = [...new Set((cars || []).map((c) => c.classId).filter(Boolean))];
+    const cur = smartClassEl.value;
+    smartClassEl.innerHTML = `<option value="">Kapalı</option><option value="__overall">Genel</option>` +
+      classes.map((cl) => `<option value="${cl}">${cl}</option>`).join("");
+    smartClassEl.value = cur;
   }).catch(() => {});
 }
+
+function loadSmart() {
+  return fetch("/api/tracking").then((r) => r.json()).then((t) => {
+    if (t.smartClass != null) smartClassEl.value = t.smartClass;
+    smartNEl.value = t.topN ?? 0;
+  }).catch(() => {});
+}
+function pushSmart() {
+  const classId = smartClassEl.value || null;
+  const topN = Number(smartNEl.value) || 0;
+  fetch("/api/smart", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ classId, topN }) })
+    .then(() => refreshState());
+}
+smartClassEl.addEventListener("change", pushSmart);
+smartNEl.addEventListener("change", pushSmart);
 document.getElementById("addForm").addEventListener("submit", (e) => {
   e.preventDefault();
   const val = carInput.value.trim();
@@ -373,11 +401,13 @@ document.getElementById("addForm").addEventListener("submit", (e) => {
     }).catch(() => {});
 });
 boardEl.addEventListener("click", (e) => {
-  const btn = e.target.closest(".rm");
+  const btn = e.target.closest(".pin");
   if (!btn) return;
   const pid = Number(btn.dataset.pid);
-  fetch("/api/tracked", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ remove: pid }) })
-    .then(() => { removePanel(pid); delete lastSeen[pid]; });
+  const pinned = btn.classList.contains("on");
+  const body = pinned ? { remove: pid } : { add: btn.dataset.car };
+  fetch("/api/tracked", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) })
+    .then(() => { if (pinned) { delete lastSeen[pid]; } refreshState(); });
 });
 
 /* ---------- sekmeler + sıralama ---------- */
@@ -398,22 +428,24 @@ function switchView(v) {
 function renderStandings() {
   Promise.all([
     fetch("/api/cars").then((r) => r.json()).catch(() => []),
-    fetch("/api/tracked").then((r) => r.json()).catch(() => []),
-  ]).then(([cars, tracked]) => {
-    const trackedSet = new Set((tracked || []).map(Number));
+    fetch("/api/tracking").then((r) => r.json()).catch(() => ({ pinned: [], effective: [] })),
+  ]).then(([cars, tracking]) => {
+    const pinnedSet = new Set((tracking.pinned || []).map(Number));
+    const effSet = new Set((tracking.effective || []).map(Number));
     const byClass = {};
     for (const c of cars || []) (byClass[c.classId || "—"] ??= []).push(c);
     const classes = Object.keys(byClass).sort((a, b) => (CLASS_ORDER[a] ?? 9) - (CLASS_ORDER[b] ?? 9));
     standingsEl.innerHTML = classes.map((cls) => {
       const rows = byClass[cls].sort((a, b) => (a.classPos ?? 999) - (b.classPos ?? 999)).map((c) => {
-        const on = trackedSet.has(c.pid);
+        const pinned = pinnedSet.has(c.pid);
+        const auto = !pinned && effSet.has(c.pid);
         const gap = c.classPos === 1 ? "Lider" : (c.gapToFirstMs > 0 ? fmtGap(c.gapToFirstMs) : "—");
-        return `<tr class="${on ? "tracked" : ""}">
+        return `<tr class="${pinned || auto ? "tracked" : ""}">
           <td class="pos">${c.classPos ?? "—"}</td>
           <td class="no">#${c.carNumber}</td>
-          <td>${c.team ?? "—"}</td>
+          <td>${c.team ?? "—"}${auto ? ` <span class="autotag">oto</span>` : ""}</td>
           <td class="gap">${gap}</td>
-          <td><button class="add ${on ? "on" : ""}" data-pid="${c.pid}" data-car="${c.carNumber}" title="${on ? "Takipten çıkar" : "Takibe ekle"}">${on ? "✓" : "+"}</button></td>
+          <td><button class="add ${pinned ? "on" : ""}" data-pid="${c.pid}" data-car="${c.carNumber}" title="${pinned ? "Sabitlemeyi kaldır" : "Sabitle"}">${pinned ? "📌" : "+"}</button></td>
         </tr>`;
       }).join("");
       return `<div class="stClass">${cls} · ${byClass[cls].length} araç</div>
@@ -425,17 +457,18 @@ function renderStandings() {
 standingsEl.addEventListener("click", (e) => {
   const btn = e.target.closest(".add");
   if (!btn) return;
-  const on = btn.classList.contains("on");
-  const body = on ? { remove: Number(btn.dataset.pid) } : { add: btn.dataset.car };
+  const pinned = btn.classList.contains("on");
+  const body = pinned ? { remove: Number(btn.dataset.pid) } : { add: btn.dataset.car };
   fetch("/api/tracked", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) })
     .then((r) => r.json())
-    .then(() => { if (on) { removePanel(Number(btn.dataset.pid)); delete lastSeen[Number(btn.dataset.pid)]; } renderStandings(); refreshState(); });
+    .then(() => { if (pinned) delete lastSeen[Number(btn.dataset.pid)]; renderStandings(); refreshState(); });
 });
 
 /* ---------- init + SSE ---------- */
 function refreshState() { return fetch("/api/state").then((r) => r.json()).then(renderBoard).catch(() => {}); }
 
 loadCars();
+loadSmart();
 if (new URLSearchParams(location.search).get("view") === "standings") switchView("standings");
 
 if (location.search.includes("static")) {
