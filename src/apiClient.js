@@ -35,14 +35,18 @@ export function createApiClient(cfg, fetchImpl = fetch) {
   return {
     async fetchAll() {
       const arrKeys = Object.keys(ARR_ENDPOINTS);
-      const [arrResults, sectors, weather] = await Promise.all([
+      const [arrResults, sectors, weather, tires, clock, sessionLength, raceLog] = await Promise.all([
         Promise.all(arrKeys.map((k) => getJson(url(ARR_ENDPOINTS[k]), []))),
         // sektörler {sid}/current-lap ile biter ve pid'e göre OBJE döner
         getJson(url("/live/sectors/", "/current-lap"), {}),
         // hava tek OBJE döner (dizi değil)
         getJson(url("/live/weather-current/"), {}),
+        getJson(url("/live/session/", "/tires-current"), []),       // pid başına lastik (dizi)
+        getJson(url("/live/session-clock/"), {}),                    // yarış saati (obje)
+        getJson(url("/live/session-length-limit/"), {}),             // toplam süre (obje)
+        getJson(url("/live/racelog-items/", "/paged"), { items: [] }), // resmi olay günlüğü (obje {items})
       ]);
-      const snap = { sectors, weather };
+      const snap = { sectors, weather, tires, clock, sessionLength, raceLog };
       arrKeys.forEach((k, i) => { snap[k] = arrResults[i]; });
       return snap;
     },

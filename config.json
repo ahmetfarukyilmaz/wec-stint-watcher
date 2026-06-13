@@ -12,7 +12,8 @@
     "driver_change": true,
     "gap_threshold": true,
     "flag": true,
-    "weather": true
+    "weather": true,
+    "racelog": true
   },
   "gapThresholdSeconds": 10,
   "battleThresholdSeconds": 2,

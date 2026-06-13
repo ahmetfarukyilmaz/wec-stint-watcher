@@ -12,6 +12,7 @@ export function createPollClient(cfg, apiClient, getTracked) {
   const emit = (map) => { for (const h of handlers) h(map); };
   const tracked = getTracked ?? (() => cfg.trackedParticipants);
   let cars = []; // tüm araçların hafif listesi (seçici için)
+  let raceLog = []; // son race log item'ları
 
   function buildCars(snap) {
     const drivers = new Map();
@@ -27,6 +28,7 @@ export function createPollClient(cfg, apiClient, getTracked) {
   async function pollOnce() {
     const snap = await apiClient.fetchAll();
     cars = buildCars(snap);
+    raceLog = snap.raceLog?.items ?? [];
     const map = adaptSnapshot(snap, tracked());
     emit(map);
     return map;
@@ -37,6 +39,7 @@ export function createPollClient(cfg, apiClient, getTracked) {
   return {
     onSnapshot(cb) { handlers.add(cb); },
     getCars() { return cars; },
+    getRaceLog() { return raceLog; },
     pollOnce,
     start() { scheduler.start(); return pollOnce(); }, // ilk poll'u hemen yap
     stop() { scheduler.stop(); },

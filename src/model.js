@@ -23,6 +23,8 @@
  * @property {Array<{num:number,ms:number,color:string}>} sectors  mevcut tur sektörleri
  * @property {Array<{lap:number,ms:number,valid:boolean}>} lapHistory  tur zamanı serisi
  * @property {{airTemp:number,trackTemp:number,humidity:number,windKph:number,windDir:string,sky:string}|null} weather
+ * @property {{compound:string,ageLaps:number}|null} tire
+ * @property {{elapsedMs:number,totalMs:number,remainingMs:number}|null} raceClock
  */
 
 /** @param {Partial<CarState>} partial @returns {CarState} */
@@ -50,6 +52,8 @@ export function makeCarState(partial = {}) {
     sectors: partial.sectors ?? [],
     lapHistory: partial.lapHistory ?? [],
     weather: partial.weather ?? null,
+    tire: partial.tire ?? null,
+    raceClock: partial.raceClock ?? null,
   };
 }
 

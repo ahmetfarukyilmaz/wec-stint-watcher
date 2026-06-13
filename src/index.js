@@ -4,7 +4,7 @@ import { createStore } from "./store.js";
 import { createTrackedStore } from "./trackedStore.js";
 import { createApiClient } from "./apiClient.js";
 import { createPollClient } from "./pollClient.js";
-import { detectEvents } from "./eventDetector.js";
+import { detectEvents, raceLogEvents } from "./eventDetector.js";
 import { makeCarState } from "./model.js";
 import { buildStintSummary } from "./summary.js";
 import { createScheduler } from "./scheduler.js";
@@ -19,6 +19,9 @@ const stateMap = new Map(Object.entries(store.loadState()).map(([k, v]) => [Numb
 // Önceki durumu olan pid'ler "baseline'lı" sayılır; soğuk başlangıçta (veya çalışırken
 // eklenen bir araçta) ilk snapshot olay ÜRETMEDEN baseline olarak alınır.
 const baselined = new Set(stateMap.keys());
+// Race log dedup: görülen item id'leri. İlk poll'da geçmiş item'lar olay üretmeden tohumlanır.
+const seenRaceLog = new Set();
+let raceLogSeeded = false;
 
 const api = createApiClient(cfg);
 const poll = createPollClient(cfg, api, () => trackedStore.list());
@@ -61,6 +64,20 @@ poll.onSnapshot((snapshot) => {
     stateMap.set(pid, next);
     for (const ev of events) { store.appendEvent(ev); web.broadcast(ev); }
   }
+
+  // Resmi race log: yeni item'lardan olay üret (RCMessage/Retired/TimeLoss)
+  const logItems = poll.getRaceLog();
+  if (cfg.events?.racelog !== false) {
+    if (!raceLogSeeded) {
+      for (const it of logItems) seenRaceLog.add(it.raceLogItemId); // geçmişi tohumla, olay üretme
+      raceLogSeeded = true;
+    } else {
+      const logEvents = raceLogEvents(logItems, seenRaceLog, trackedStore.list(), Date.now());
+      for (const ev of logEvents) { store.appendEvent(ev); web.broadcast(ev); }
+    }
+    for (const it of logItems) seenRaceLog.add(it.raceLogItemId);
+  }
+
   store.saveState(Object.fromEntries(stateMap));
   web.broadcast({ type: "tick", at: Date.now(), state: Object.fromEntries(stateMap) });
 });

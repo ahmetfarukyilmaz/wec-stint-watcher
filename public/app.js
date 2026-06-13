@@ -30,6 +30,24 @@ function fmtLapShort(ms) { if (ms == null) return "—"; const s = ms / 1000; co
 function fmtGap(ms) { return ms == null ? "—" : `${(ms / 1000).toFixed(1)}s`; }
 function fmtDelta(ms) { if (ms == null) return null; const s = (ms / 1000).toFixed(1); return ms > 0 ? `+${s}` : s; }
 function fmtTime(at) { const d = new Date(at); const p = (n) => String(n).padStart(2, "0"); return `${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`; }
+function fmtDur(ms) { if (ms == null) return "—"; const s = Math.floor(ms / 1000); const p = (n) => String(n).padStart(2, "0"); return `${p(Math.floor(s / 3600))}:${p(Math.floor((s % 3600) / 60))}:${p(s % 60)}`; }
+
+/* ---------- yarış saati ---------- */
+const clockEl = document.getElementById("clock");
+const clockValEl = document.getElementById("clockVal");
+function applyClock(rc) {
+  if (!rc || rc.remainingMs == null) { clockEl.style.display = "none"; return; }
+  clockEl.style.display = "";
+  clockValEl.textContent = fmtDur(rc.remainingMs);
+}
+
+/* ---------- lastik rozeti ---------- */
+function tireHtml(tire) {
+  if (!tire) return "";
+  const a = tire.ageLaps ?? 0;
+  const cls = a <= 4 ? "fresh" : a <= 16 ? "mid" : a <= 27 ? "old" : "worn";
+  return `<span class="tire ${cls}">🛞 ${tire.compound ?? "—"} <b>${a}t</b></span>`;
+}
 
 /* ---------- flag theming ---------- */
 const FLAG_COLORS = { green: "#c6ff2e", yellow: "#ffb327", fcy: "#ffb327", slow: "#ffb327", safety: "#ffb327", sc: "#ffb327", red: "#ff3b46", chequered: "#ffffff", checkered: "#ffffff", white: "#ffffff" };
@@ -146,7 +164,7 @@ function carCardHtml(car) {
       <div class="num">${car.carNumber ?? pid}</div>
       <div class="id">
         <div class="driver">${car.currentDriver ?? "—"}</div>
-        <div class="meta"><span class="cls">${car.classId ?? "—"}</span> · tur ${car.lapNumber ?? "—"} · ${car.pitCount ?? 0} pit ${car.inPit ? "· PİTTE" : ""}</div>
+        <div class="meta"><span class="cls">${car.classId ?? "—"}</span> · tur ${car.lapNumber ?? "—"} · ${car.pitCount ?? 0} pit ${car.inPit ? "· PİTTE" : ""}${tireHtml(car.tire)}</div>
       </div>
       <div class="posbox"><div class="plabel">Sınıf</div><div class="pval">P${car.classPosition ?? "—"}</div><div class="overall">genel ${car.position ?? "—"}.</div></div>
     </div>
@@ -214,7 +232,7 @@ function renderBoard(state) {
   // artık izlenmeyen panelleri kaldır
   for (const p of Object.keys(panels)) if (!pids.includes(Number(p))) removePanel(Number(p));
   const first = state[pids[0]];
-  if (first) { renderWeather(first.weather); applyFlag(first.flag); }
+  if (first) { renderWeather(first.weather); applyFlag(first.flag); applyClock(first.raceClock); }
 }
 
 /* ---------- events ---------- */
@@ -235,9 +253,12 @@ const META = {
   gap_threshold: (p) => ({ ico: "≈", accent: "var(--amber)", txt: `Öndeki araca fark <b>${p.thresholdSeconds}sn</b> altına indi` }),
   flag:          (p) => ({ ico: "⚑", accent: "var(--flag)", txt: `Bayrak · <b>${p.to}</b>` }),
   weather_change:(p) => ({ ico: "☁", accent: "var(--amber)", txt: `Hava değişti · <b>${p.from} → ${p.to}</b>${p.trackTemp != null ? ` · pist ${p.trackTemp}°` : ""}` }),
+  rc_message:    (p) => ({ ico: "📣", accent: "var(--amber)", txt: `Yarış kontrol · <b>${p.text || "mesaj"}</b>` }),
+  retired:       (p) => ({ ico: "⏹", accent: "var(--red)", txt: `<b>ÇEKİLDİ</b> · tur ${p.lap ?? "—"}` }),
+  time_loss:     (p) => ({ ico: "⚠", accent: "var(--amber)", txt: `Zaman kaybı · tur ${p.lap}${p.diffMs != null ? ` · tempodan +${(p.diffMs / 1000).toFixed(1)}sn` : ""}` }),
   stint_summary: (p) => ({ ico: "Σ", accent: "var(--purple)", txt: `<b>Stint özeti</b> · sınıf P${p.classPosition} · ${p.pitCount} pit · en iyi ${fmtLap(p.bestLapMs)} · ${p.currentDriver ?? "—"}` }),
 };
-const NOTIFY = new Set(["position_change", "pit_in", "pit_out", "best_lap", "fastest_lap", "battle_ahead", "battle_behind", "driver_change", "gap_threshold", "flag", "weather_change"]);
+const NOTIFY = new Set(["position_change", "pit_in", "pit_out", "best_lap", "fastest_lap", "battle_ahead", "battle_behind", "driver_change", "gap_threshold", "flag", "weather_change", "rc_message", "retired", "time_loss"]);
 
 function addEvent(ev, silent = false) {
   if (ev.type === "connection") {
@@ -297,6 +318,8 @@ if (location.search.includes("static")) {
     const t = Date.now();
     const pid = Number(Object.keys(panels)[0]) || 400061;
     [
+      { type: "rc_message", participantId: pid, at: t + 1000, payload: { text: "SLOW CAR PIT ENTRY ROAD", lap: 100 } },
+      { type: "time_loss", participantId: pid, at: t - 30000, payload: { lap: 98, diffMs: 3012 } },
       { type: "battle_behind", participantId: pid, at: t, payload: { carNumber: "23", gapMs: 461 } },
       { type: "lap_completed", participantId: pid, at: t - 9000, payload: { lap: 69, lapMs: 239136, deltaPrevMs: 1340, deltaBestMs: 4165 } },
       { type: "weather_change", participantId: pid, at: t - 90000, payload: { from: "Cloudy", to: "Light Rain", trackTemp: 29 } },

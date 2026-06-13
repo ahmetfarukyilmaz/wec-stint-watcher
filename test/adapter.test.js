@@ -167,3 +167,26 @@ test("lapHistory tur numarasına göre sıralı {lap,ms,valid} dizisi verir", ()
   assert.deepEqual(h.map((x) => x.lap), [5, 6, 7]);
   assert.equal(h[1].valid, false);
 });
+
+test("lastik compound + en yüksek yaş", () => {
+  const snap = {
+    ranks: [{ pid: 9, overallPosition: 1, position: 1, carNumber: "9", classId: "X" }],
+    gaps: [], laps: [], bestLaps: [], pitIn: [], pitOut: [], participants: [], flags: [],
+    tires: [{ pid: 9, tires: [{ compound: "MEDIUM", ageInLaps: 23 }, { compound: "MEDIUM", ageInLaps: 22 }] }],
+  };
+  const car = adaptSnapshot(snap, [9]).get(9);
+  assert.equal(car.tire.compound, "MEDIUM");
+  assert.equal(car.tire.ageLaps, 23);
+});
+
+test("raceClock: kalan = toplam - geçen", () => {
+  const snap = {
+    ranks: [{ pid: 9, overallPosition: 1, position: 1, carNumber: "9", classId: "X" }],
+    gaps: [], laps: [], bestLaps: [], pitIn: [], pitOut: [], participants: [], flags: [],
+    clock: { elapsedTimeMillis: 3600000 }, sessionLength: { timeLimitSeconds: 86400 },
+  };
+  const car = adaptSnapshot(snap, [9]).get(9);
+  assert.equal(car.raceClock.elapsedMs, 3600000);
+  assert.equal(car.raceClock.totalMs, 86400000);
+  assert.equal(car.raceClock.remainingMs, 86400000 - 3600000);
+});

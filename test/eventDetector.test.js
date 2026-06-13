@@ -1,7 +1,7 @@
 // test/eventDetector.test.js
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { detectEvents } from "../src/eventDetector.js";
+import { detectEvents, raceLogEvents } from "../src/eventDetector.js";
 import { makeCarState } from "../src/model.js";
 
 const cfg = { events: { position_change: true, pit: true, lap: true, driver_change: true, gap_threshold: true, flag: true }, gapThresholdSeconds: 10 };
@@ -120,4 +120,24 @@ test("hava aynıysa weather_change üretmez", () => {
   const c = { events: { weather: true }, gapThresholdSeconds: 10 };
   const s = makeCarState({ participantId: 1, weather: { sky: "Cloudy" } });
   assert.equal(detectEvents(s, makeCarState({ participantId: 1, weather: { sky: "Cloudy" } }), c, NOW).find((x) => x.type === "weather_change"), undefined);
+});
+
+test("raceLogEvents: RCMessage izlenen her araca, Retired/TimeLoss pid eşleşince", () => {
+  const items = [
+    { raceLogItemId: "a", type: "RCMessage", text: "SLOW CAR", lapNumber: 100, pid: -1 },
+    { raceLogItemId: "b", type: "ParticipantRetired", pid: 9, carNumber: "9", lapNumber: 95 },
+    { raceLogItemId: "c", type: "SignificantTimeLoss", pid: 7, diffFromRacePace: 3000, lapNumber: 98, sectorNumber: 2 },
+    { raceLogItemId: "d", type: "PitIn", pid: 9 }, // bizde zaten var -> atlanır
+  ];
+  const evs = raceLogEvents(items, new Set(), [9, 8], 1000);
+  // RCMessage -> 2 araç (9,8); Retired -> 9 izleniyor; TimeLoss pid 7 izlenmiyor -> yok
+  assert.equal(evs.filter((e) => e.type === "rc_message").length, 2);
+  assert.equal(evs.filter((e) => e.type === "retired").length, 1);
+  assert.equal(evs.filter((e) => e.type === "time_loss").length, 0);
+  assert.equal(evs.find((e) => e.type === "retired").participantId, 9);
+});
+
+test("raceLogEvents: görülen id tekrar üretmez", () => {
+  const items = [{ raceLogItemId: "a", type: "ParticipantRetired", pid: 9, lapNumber: 1 }];
+  assert.equal(raceLogEvents(items, new Set(["a"]), [9], 1).length, 0);
 });

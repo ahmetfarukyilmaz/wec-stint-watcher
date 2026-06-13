@@ -90,6 +90,16 @@
       padding: 7px 14px; border: 1px solid var(--line); border-radius: 999px; background: var(--panel);
     }
     .flagpill .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--flag); box-shadow: 0 0 12px var(--flag); }
+    .clock { display: flex; align-items: baseline; gap: 7px; padding: 6px 13px; border: 1px solid var(--line); border-radius: 999px; background: var(--panel); }
+    .clock .lbl { font-size: 9px; letter-spacing: 2px; text-transform: uppercase; color: var(--dim); }
+    .clock .val { font-family: "JetBrains Mono", monospace; font-weight: 700; font-size: 14px; color: var(--txt); }
+    /* lastik rozeti */
+    .tire { display: inline-flex; align-items: center; gap: 5px; padding: 1px 7px; border-radius: 5px; border: 1px solid var(--line); margin-left: 6px; font-size: 11px; }
+    .tire b { font-family: "JetBrains Mono", monospace; }
+    .tire.fresh { border-color: var(--signal); color: var(--signal); }
+    .tire.mid { color: var(--txt); }
+    .tire.old { border-color: var(--amber); color: var(--amber); }
+    .tire.worn { border-color: var(--red); color: var(--red); }
 
     .conn { display: flex; align-items: center; gap: 8px; font-size: 11px; letter-spacing: 2px; text-transform: uppercase; color: var(--dim); }
     #status { display: inline-flex; align-items: center; gap: 7px; padding: 6px 12px; border-radius: 999px; border: 1px solid var(--line); background: var(--panel); color: var(--dim); }
@@ -269,6 +279,7 @@
       <datalist id="carList"></datalist>
       <button class="add" type="submit" title="Araç ekle">+</button>
     </form>
+    <div class="clock" id="clock" style="display:none"><span class="lbl">Kalan</span><span class="val" id="clockVal">—</span></div>
     <div class="flagpill"><span class="dot"></span><span id="flagText">—</span></div>
     <div class="conn"><span id="status">bağlanıyor</span></div>
     <button id="themeToggle" title="Tema değiştir" aria-label="Tema değiştir">◐</button>

@@ -27,6 +27,13 @@ export function adaptSnapshot(snap, trackedPids) {
     sky: w.sky ?? null,
   } : null;
 
+  // Yarış saati global: kalan süre = toplam limit - geçen
+  const totalMs = (snap.sessionLength?.timeLimitSeconds ?? 0) * 1000;
+  const elapsedMs = snap.clock?.elapsedTimeMillis ?? null;
+  const raceClock = (elapsedMs != null && elapsedMs >= 0)
+    ? { elapsedMs, totalMs, remainingMs: totalMs ? Math.max(0, totalMs - elapsedMs) : null }
+    : null;
+
   for (const pid of trackedPids) {
     const rank = byPid(snap.ranks ?? [], pid)[0];
     const gap = gapOf(pid);
@@ -60,6 +67,12 @@ export function adaptSnapshot(snap, trackedPids) {
     // speed trap (kph)
     const ts = byPid(snap.topSpeed ?? [], pid)[0];
     const topSpeedKph = ts?.speed ? ts.speed : null;
+
+    // lastik: compound + yaş (4 teker, yaşı en büyüğü al)
+    const tireRec = byPid(snap.tires ?? [], pid)[0];
+    const tire = tireRec?.tires?.length
+      ? { compound: tireRec.tires[0].compound ?? null, ageLaps: Math.max(...tireRec.tires.map((t) => t.ageInLaps ?? 0)) }
+      : null;
 
     // mevcut tur sektörleri (obje pid -> array)
     const sectorRows = (snap.sectors && snap.sectors[String(pid)]) || (snap.sectors && snap.sectors[pid]) || [];
@@ -104,6 +117,8 @@ export function adaptSnapshot(snap, trackedPids) {
       sectors,
       lapHistory,
       weather,
+      tire,
+      raceClock,
     }));
   }
   return map;

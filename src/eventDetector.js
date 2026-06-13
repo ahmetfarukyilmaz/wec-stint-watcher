@@ -72,3 +72,29 @@ export function detectEvents(prev, next, cfg, at) {
 
   return events;
 }
+
+/**
+ * Resmi race log item'larından olay üretir (append/dedup mantığı — state diff değil).
+ * Sadece bizim kendi diff'imizle yakalamadığımız tipler: RCMessage (global yarış kontrol),
+ * ParticipantRetired (çekilme), SignificantTimeLoss (incident/büyük kayıp).
+ * @param {Array<object>} items raceLog item'ları
+ * @param {Set<string>} seenIds daha önce işlenmiş raceLogItemId'ler (mutasyon YOK)
+ * @param {number[]} trackedPids
+ * @param {number} at epoch ms
+ */
+export function raceLogEvents(items, seenIds, trackedPids, at) {
+  const tracked = new Set(trackedPids.map(Number));
+  const events = [];
+  for (const it of items ?? []) {
+    if (seenIds.has(it.raceLogItemId)) continue;
+    if (it.type === "RCMessage") {
+      // global: izlenen her araca göster
+      for (const pid of tracked) events.push(makeEvent("rc_message", pid, { text: it.text ?? "", lap: it.lapNumber }, at));
+    } else if (it.type === "ParticipantRetired" && tracked.has(Number(it.pid))) {
+      events.push(makeEvent("retired", Number(it.pid), { lap: it.lapNumber, carNumber: it.carNumber }, at));
+    } else if (it.type === "SignificantTimeLoss" && tracked.has(Number(it.pid))) {
+      events.push(makeEvent("time_loss", Number(it.pid), { lap: it.lapNumber, sector: it.sectorNumber, diffMs: it.diffFromRacePace ?? null }, at));
+    }
+  }
+  return events;
+}
