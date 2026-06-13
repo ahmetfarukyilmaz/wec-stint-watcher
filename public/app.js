@@ -179,6 +179,7 @@ function buildCard(pid) {
       <div class="num" data-f="num"></div>
       <div class="id">
         <div class="driver"><span data-f="driver"></span><span data-f="driverCat"></span></div>
+        <div class="teamname" data-f="team"></div>
         <div class="meta" data-f="meta"></div>
         <div class="lineup" data-f="lineup"></div>
       </div>
@@ -222,6 +223,7 @@ function updateCard(card, car) {
   F.pin.title = car.pinned ? "Sabitlemeyi kaldır" : "Sabitle — pozisyonu ne olursa olsun kalsın";
   setText(F.driver, car.currentDriver ?? "—");
   setHTML(card, "driverCat", car.currentDriverCat ? " " + catBadge(car.currentDriverCat, true) : "");
+  setText(F.team, car.team ?? "");
   setHTML(card, "meta", metaInner(car));
   setHTML(card, "lineup", lineupInner(car.drivers));
   setText(F.classPos, "P" + (car.classPosition ?? "—"));

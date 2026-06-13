@@ -17,6 +17,7 @@
  * @property {string|null} behindCarNumber  arkadaki rakip araç no (sınıf içi)
  * @property {boolean} inPit
  * @property {number} pitCount
+ * @property {string|null} team               takım adı
  * @property {string|null} currentDriver
  * @property {string|null} currentDriverCat  FIA kategori: P/G/S/B
  * @property {Array<{name:string,cat:string|null,current:boolean}>} drivers  sürücü kadrosu
@@ -50,6 +51,7 @@ export function makeCarState(partial = {}) {
     behindCarNumber: partial.behindCarNumber ?? null,
     inPit: partial.inPit ?? false,
     pitCount: partial.pitCount ?? 0,
+    team: partial.team ?? null,
     currentDriver: partial.currentDriver ?? null,
     currentDriverCat: partial.currentDriverCat ?? null,
     drivers: partial.drivers ?? [],

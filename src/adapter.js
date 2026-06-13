@@ -120,6 +120,7 @@ export function adaptSnapshot(snap, trackedPids) {
       behindCarNumber: behindCar?.carNumber ?? null,
       inPit: lastInTs > lastOutTs,
       pitCount: pitIns.length,
+      team: part?.teamName ?? part?.displayName ?? null,
       currentDriver: driver,
       currentDriverCat: driverCat,
       drivers,
