@@ -40,6 +40,8 @@ poll.onSnapshot((snapshot) => {
     for (const ev of events) { store.appendEvent(ev); web.broadcast(ev); }
   }
   store.saveState(Object.fromEntries(stateMap));
+  // Her poll'da canlı panel güncellemesi (bildirim üretmez)
+  web.broadcast({ type: "tick", at: Date.now(), state: Object.fromEntries(stateMap) });
 });
 
 // Periyodik stint özeti

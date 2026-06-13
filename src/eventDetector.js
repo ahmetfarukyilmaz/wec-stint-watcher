@@ -5,7 +5,7 @@ import { makeEvent } from "./model.js";
  * Saf fonksiyon: önceki ve yeni durumu karşılaştırıp olay listesi üretir.
  * @param {import("./model.js").CarState} prev
  * @param {import("./model.js").CarState} next
- * @param {{events:Record<string,boolean>, gapThresholdSeconds:number}} cfg
+ * @param {{events:Record<string,boolean>, gapThresholdSeconds:number, battleThresholdSeconds?:number}} cfg
  * @param {number} at epoch ms
  */
 export function detectEvents(prev, next, cfg, at) {
@@ -44,6 +44,26 @@ export function detectEvents(prev, next, cfg, at) {
 
   if (on("flag") && next.flag && prev.flag !== next.flag) {
     events.push(makeEvent("flag", pid, { from: prev.flag, to: next.flag }, at));
+  }
+
+  if (on("lap_completed") && prev.lapNumber != null && next.lapNumber != null && next.lapNumber > prev.lapNumber && next.lastLapMs != null) {
+    events.push(makeEvent("lap_completed", pid, {
+      lap: next.lapNumber,
+      lapMs: next.lastLapMs,
+      deltaPrevMs: prev.lastLapMs != null ? next.lastLapMs - prev.lastLapMs : null,
+      deltaBestMs: next.bestLapMs != null ? next.lastLapMs - next.bestLapMs : null,
+    }, at));
+  }
+
+  if (on("battle")) {
+    const thr = (cfg.battleThresholdSeconds ?? 2) * 1000;
+    // Rakip eşik dışındayken (ya da bilinmezken) eşik içine girince bir kez tetikle (histerezis)
+    if (next.gapAheadMs != null && next.gapAheadMs < thr && (prev.gapAheadMs == null || prev.gapAheadMs >= thr)) {
+      events.push(makeEvent("battle_ahead", pid, { carNumber: next.aheadCarNumber, gapMs: next.gapAheadMs, thresholdSeconds: cfg.battleThresholdSeconds ?? 2 }, at));
+    }
+    if (next.gapBehindMs != null && next.gapBehindMs < thr && (prev.gapBehindMs == null || prev.gapBehindMs >= thr)) {
+      events.push(makeEvent("battle_behind", pid, { carNumber: next.behindCarNumber, gapMs: next.gapBehindMs, thresholdSeconds: cfg.battleThresholdSeconds ?? 2 }, at));
+    }
   }
 
   return events;

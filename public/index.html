@@ -3,27 +3,192 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>WEC Stint Watcher</title>
+  <title>STINT WATCHER · WEC</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700;800&display=swap" rel="stylesheet" />
   <style>
-    body { font-family: system-ui, sans-serif; margin: 0; background: #111; color: #eee; }
-    header { padding: 12px 16px; background: #1c1c1c; display: flex; justify-content: space-between; align-items: center; }
-    #status { font-size: 13px; padding: 2px 8px; border-radius: 10px; background: #444; }
-    #status.ok { background: #1a7f37; } #status.bad { background: #b62324; }
-    main { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding: 16px; }
-    table { width: 100%; border-collapse: collapse; } td, th { padding: 4px 8px; text-align: left; border-bottom: 1px solid #333; }
-    #events li { padding: 6px 8px; border-bottom: 1px solid #222; font-size: 14px; }
-    button { background: #2563eb; color: #fff; border: 0; padding: 6px 12px; border-radius: 6px; cursor: pointer; }
+    :root {
+      --bg: #07080a;
+      --panel: #101216;
+      --panel-2: #161a20;
+      --line: #23262e;
+      --line-soft: #1a1d23;
+      --txt: #eef1f5;
+      --dim: #767d8b;
+      --dimmer: #4a505c;
+      --signal: #c6ff2e;        /* timing yeşili */
+      --purple: #b388ff;        /* fastest lap mor */
+      --amber: #ffb327;
+      --red: #ff3b46;
+      --flag: var(--signal);    /* JS bayrak durumuna göre değiştirir */
+      --grid: rgba(255,255,255,.022);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; }
+    body {
+      background:
+        radial-gradient(1200px 600px at 85% -10%, rgba(198,255,46,.06), transparent 60%),
+        radial-gradient(900px 500px at 0% 110%, rgba(179,136,255,.05), transparent 55%),
+        linear-gradient(var(--grid) 1px, transparent 1px) 0 0 / 100% 34px,
+        var(--bg);
+      color: var(--txt);
+      font-family: "Chakra Petch", system-ui, sans-serif;
+      min-height: 100%;
+      letter-spacing: .2px;
+      -webkit-font-smoothing: antialiased;
+    }
+    .mono { font-family: "JetBrains Mono", monospace; font-variant-numeric: tabular-nums; }
+
+    /* ---------- TOP BAR ---------- */
+    header {
+      position: sticky; top: 0; z-index: 20;
+      display: flex; align-items: center; gap: 18px;
+      padding: 14px 26px;
+      background: linear-gradient(180deg, rgba(7,8,10,.96), rgba(7,8,10,.78));
+      border-bottom: 1px solid var(--line);
+      backdrop-filter: blur(8px);
+    }
+    header::before { /* flag accent rail */
+      content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px;
+      background: var(--flag); box-shadow: 0 0 18px var(--flag);
+    }
+    .brand { display: flex; align-items: baseline; gap: 12px; }
+    .brand h1 { font-size: 21px; font-weight: 700; letter-spacing: 3px; text-transform: uppercase; }
+    .brand h1 b { color: var(--flag); }
+    .brand .sub { font-size: 11px; letter-spacing: 3px; color: var(--dim); text-transform: uppercase; }
+    .spacer { flex: 1; }
+
+    .flagpill {
+      display: flex; align-items: center; gap: 9px;
+      font-size: 12px; letter-spacing: 2px; text-transform: uppercase;
+      padding: 7px 14px; border: 1px solid var(--line); border-radius: 999px; background: var(--panel);
+    }
+    .flagpill .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--flag); box-shadow: 0 0 12px var(--flag); }
+
+    .conn { display: flex; align-items: center; gap: 8px; font-size: 11px; letter-spacing: 2px; text-transform: uppercase; color: var(--dim); }
+    #status { display: inline-flex; align-items: center; gap: 7px; padding: 6px 12px; border-radius: 999px; border: 1px solid var(--line); background: var(--panel); color: var(--dim); }
+    #status::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--dimmer); }
+    #status.ok { color: var(--signal); border-color: rgba(198,255,46,.3); }
+    #status.ok::before { background: var(--signal); box-shadow: 0 0 10px var(--signal); animation: pulse 1.6s ease-in-out infinite; }
+    #status.bad { color: var(--red); border-color: rgba(255,59,70,.35); }
+    #status.bad::before { background: var(--red); }
+    @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .25; } }
+
+    button#enableNotif {
+      font-family: inherit; font-size: 11px; letter-spacing: 1.5px; text-transform: uppercase;
+      color: var(--bg); background: var(--flag); border: 0; padding: 9px 15px; border-radius: 8px;
+      cursor: pointer; font-weight: 700; transition: transform .12s ease, box-shadow .2s ease;
+    }
+    button#enableNotif:hover { transform: translateY(-1px); box-shadow: 0 6px 22px -6px var(--flag); }
+
+    /* ---------- LAYOUT ---------- */
+    main { display: grid; grid-template-columns: 1.55fr 1fr; gap: 20px; padding: 22px 26px 40px; max-width: 1380px; margin: 0 auto; }
+    @media (max-width: 920px) { main { grid-template-columns: 1fr; } }
+
+    .col-title { display: flex; align-items: center; gap: 10px; font-size: 11px; letter-spacing: 3px; text-transform: uppercase; color: var(--dim); margin: 0 2px 14px; }
+    .col-title::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+
+    /* ---------- CAR CARD ---------- */
+    #cars { display: flex; flex-direction: column; gap: 18px; }
+    .car {
+      position: relative; overflow: hidden;
+      background: linear-gradient(180deg, var(--panel-2), var(--panel));
+      border: 1px solid var(--line); border-radius: 16px; padding: 22px 24px 24px;
+      animation: rise .5s cubic-bezier(.2,.7,.2,1) both;
+    }
+    .car::after { content: ""; position: absolute; inset: 0; border-radius: 16px; pointer-events: none; box-shadow: inset 0 1px 0 rgba(255,255,255,.04); }
+    @keyframes rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+
+    .car-head { display: flex; align-items: center; gap: 18px; }
+    .num {
+      font-family: "JetBrains Mono", monospace; font-weight: 800; font-size: 34px; line-height: 1;
+      color: var(--bg); background: var(--flag); padding: 12px 14px; border-radius: 12px;
+      min-width: 78px; text-align: center; letter-spacing: -1px; box-shadow: 0 8px 30px -10px var(--flag);
+    }
+    .id { flex: 1; min-width: 0; }
+    .id .driver { font-size: 22px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .id .meta { font-size: 12px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--dim); margin-top: 3px; }
+    .id .meta .cls { color: var(--txt); }
+
+    .posbox { text-align: right; }
+    .posbox .plabel { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: var(--dim); }
+    .posbox .pval { font-family: "JetBrains Mono", monospace; font-weight: 800; font-size: 46px; line-height: .9; }
+    .posbox .pval small { font-size: 18px; color: var(--dim); font-weight: 700; }
+    .posbox .overall { font-size: 11px; color: var(--dimmer); letter-spacing: 1px; margin-top: 4px; }
+
+    /* timing strip */
+    .strip { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; margin-top: 22px; background: var(--line-soft); border: 1px solid var(--line-soft); border-radius: 12px; overflow: hidden; }
+    .cell { background: var(--panel); padding: 13px 14px; }
+    .cell .k { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: var(--dim); }
+    .cell .v { font-family: "JetBrains Mono", monospace; font-weight: 700; font-size: 20px; margin-top: 5px; }
+    .cell .v.purple { color: var(--purple); text-shadow: 0 0 16px rgba(179,136,255,.4); }
+    .cell .v .delta { font-size: 12px; font-weight: 600; margin-left: 6px; }
+    .delta.up { color: var(--red); }      /* yavaş */
+    .delta.down { color: var(--signal); } /* hızlı */
+
+    /* battle gauge */
+    .battle { margin-top: 20px; }
+    .battle .bl { display: flex; justify-content: space-between; font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: var(--dim); margin-bottom: 9px; }
+    .gauge { position: relative; height: 50px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; }
+    .gauge .center { position: absolute; left: 50%; top: -4px; bottom: -4px; width: 2px; background: var(--flag); transform: translateX(-50%); box-shadow: 0 0 12px var(--flag); }
+    .gauge .me { position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%); font-family: "JetBrains Mono", monospace; font-weight: 800; font-size: 13px; color: var(--bg); background: var(--flag); padding: 4px 7px; border-radius: 6px; z-index: 2; }
+    .rival { position: absolute; top: 50%; transform: translate(-50%,-50%); display: flex; flex-direction: column; align-items: center; gap: 3px; transition: left .6s cubic-bezier(.2,.7,.2,1); }
+    .rival .car-no { font-family: "JetBrains Mono", monospace; font-weight: 700; font-size: 12px; padding: 3px 6px; border-radius: 5px; background: var(--panel-2); border: 1px solid var(--line); }
+    .rival .gap { font-size: 11px; letter-spacing: .5px; color: var(--dim); white-space: nowrap; }
+    .rival.hot .car-no { color: var(--red); border-color: var(--red); box-shadow: 0 0 14px -2px var(--red); }
+    .rival.hot .gap { color: var(--red); }
+    .arrow { font-weight: 700; }
+    .arrow.closing { color: var(--signal); }
+    .arrow.losing { color: var(--dim); }
+
+    /* ---------- EVENT FEED ---------- */
+    #events { list-style: none; display: flex; flex-direction: column; gap: 9px; max-height: 76vh; overflow-y: auto; padding-right: 4px; }
+    #events::-webkit-scrollbar { width: 6px; }
+    #events::-webkit-scrollbar-thumb { background: var(--line); border-radius: 3px; }
+    .ev {
+      position: relative; display: flex; gap: 12px; align-items: flex-start;
+      background: var(--panel); border: 1px solid var(--line-soft); border-left: 3px solid var(--accent, var(--dimmer));
+      border-radius: 10px; padding: 11px 14px;
+      animation: slidein .45s cubic-bezier(.2,.8,.2,1) both;
+    }
+    @keyframes slidein { from { opacity: 0; transform: translateX(-14px); } to { opacity: 1; transform: none; } }
+    .ev .ico { font-family: "JetBrains Mono", monospace; font-weight: 800; font-size: 13px; color: var(--accent, var(--dim)); padding-top: 1px; min-width: 18px; text-align: center; }
+    .ev .body { flex: 1; }
+    .ev .body .txt { font-size: 14px; line-height: 1.35; }
+    .ev .body .txt b { color: var(--accent, var(--txt)); }
+    .ev .time { font-family: "JetBrains Mono", monospace; font-size: 11px; color: var(--dimmer); white-space: nowrap; }
+    .ev.flash { box-shadow: 0 0 0 1px var(--accent), 0 0 26px -6px var(--accent); }
+
+    .empty { color: var(--dimmer); font-size: 13px; letter-spacing: 1px; padding: 20px 4px; text-align: center; }
+    footer { text-align: center; color: var(--dimmer); font-size: 11px; letter-spacing: 2px; text-transform: uppercase; padding: 10px 0 26px; }
   </style>
 </head>
 <body>
   <header>
-    <strong>WEC Stint Watcher</strong>
-    <span><span id="status">bağlanıyor…</span> <button id="enableNotif">Bildirimleri aç</button></span>
+    <div class="brand">
+      <h1>STINT<b>·</b>WATCHER</h1>
+      <span class="sub">FIA WEC LIVE</span>
+    </div>
+    <div class="spacer"></div>
+    <div class="flagpill"><span class="dot"></span><span id="flagText">—</span></div>
+    <div class="conn"><span id="status">bağlanıyor</span></div>
+    <button id="enableNotif">Bildirimleri Aç</button>
   </header>
+
   <main>
-    <section><h3>Durum</h3><table id="stateTable"><tbody></tbody></table></section>
-    <section><h3>Olaylar</h3><ul id="events" style="list-style:none;padding:0;margin:0;"></ul></section>
+    <section>
+      <div class="col-title">Takip Edilen</div>
+      <div id="cars"><div class="empty">Veri bekleniyor…</div></div>
+    </section>
+    <section>
+      <div class="col-title">Canlı Akış</div>
+      <ul id="events"><li class="empty">Henüz olay yok</li></ul>
+    </section>
   </main>
+
+  <footer>insights.griiip.com · canlı poll</footer>
+
   <script src="app.js"></script>
 </body>
 </html>
