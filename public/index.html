@@ -181,6 +181,11 @@
     .delta.up { color: var(--red); }      /* yavaş */
     .delta.down { color: var(--signal); } /* hızlı */
 
+    /* pit / stint satırı */
+    .pitline { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 12px; padding: 9px 12px; background: var(--panel); border: 1px solid var(--line); border-radius: 9px; font-size: 12px; color: var(--dim); }
+    .pitline b { font-family: "JetBrains Mono", monospace; color: var(--txt); font-weight: 700; }
+    .pitline .hl { color: var(--flag); }
+
     /* sektörler */
     .sectors { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 14px; }
     .sec { background: var(--panel); border: 1px solid var(--line); border-left: 3px solid var(--dimmer); border-radius: 8px; padding: 8px 10px; }

@@ -25,6 +25,8 @@
  * @property {{airTemp:number,trackTemp:number,humidity:number,windKph:number,windDir:string,sky:string}|null} weather
  * @property {{compound:string,ageLaps:number}|null} tire
  * @property {{elapsedMs:number,totalMs:number,remainingMs:number}|null} raceClock
+ * @property {{lap:number,at:number,durationMs:number}|null} lastPit  son pit-out (tur, epoch ms, duruş)
+ * @property {number|null} stintLaps  son pit'ten beri geçen tur
  */
 
 /** @param {Partial<CarState>} partial @returns {CarState} */
@@ -54,6 +56,8 @@ export function makeCarState(partial = {}) {
     weather: partial.weather ?? null,
     tire: partial.tire ?? null,
     raceClock: partial.raceClock ?? null,
+    lastPit: partial.lastPit ?? null,
+    stintLaps: partial.stintLaps ?? null,
   };
 }
 

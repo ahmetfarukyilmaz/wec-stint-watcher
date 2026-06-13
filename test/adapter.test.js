@@ -190,3 +190,31 @@ test("raceClock: kalan = toplam - geçen", () => {
   assert.equal(car.raceClock.totalMs, 86400000);
   assert.equal(car.raceClock.remainingMs, 86400000 - 3600000);
 });
+
+test("lastPit ve stintLaps son pit-out'tan türetilir", () => {
+  const snap = {
+    ranks: [{ pid: 9, overallPosition: 1, position: 1, carNumber: "9", classId: "X" }],
+    gaps: [], bestLaps: [], pitIn: [], participants: [], flags: [],
+    laps: [{ pid: 9, lapNumber: 88, lapTimeMillis: 207000, isValid: true }],
+    pitOut: [
+      { pid: 9, lapNumber: 40, ts: "2026-06-13T16:00:00+00:00", durationMillis: 70000 },
+      { pid: 9, lapNumber: 83, ts: "2026-06-13T19:00:00+00:00", durationMillis: 75500 },
+    ],
+  };
+  const car = adaptSnapshot(snap, [9]).get(9);
+  assert.equal(car.lastPit.lap, 83);
+  assert.equal(car.lastPit.durationMs, 75500);
+  assert.equal(car.lastPit.at, Date.parse("2026-06-13T19:00:00+00:00"));
+  assert.equal(car.stintLaps, 88 - 83); // 5 tur
+});
+
+test("hiç pit yoksa lastPit null, stint = tur sayısı", () => {
+  const snap = {
+    ranks: [{ pid: 9, overallPosition: 1, position: 1, carNumber: "9", classId: "X" }],
+    gaps: [], bestLaps: [], pitIn: [], pitOut: [], participants: [], flags: [],
+    laps: [{ pid: 9, lapNumber: 12, lapTimeMillis: 207000, isValid: true }],
+  };
+  const car = adaptSnapshot(snap, [9]).get(9);
+  assert.equal(car.lastPit, null);
+  assert.equal(car.stintLaps, 12);
+});

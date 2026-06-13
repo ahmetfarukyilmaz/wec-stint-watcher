@@ -86,6 +86,9 @@ export function adaptSnapshot(snap, trackedPids) {
     const pitOuts = byPid(snap.pitOut ?? [], pid);
     const lastInTs = pitIns.reduce((m, x) => Math.max(m, tsMs(x.ts)), 0);
     const lastOutTs = pitOuts.reduce((m, x) => Math.max(m, tsMs(x.ts)), 0);
+    // son pit-out kaydı (tur, zaman, duruş süresi)
+    const lastOut = pitOuts.reduce((m, x) => (m == null || tsMs(x.ts) > tsMs(m.ts) ? x : m), null);
+    const lastPit = lastOut ? { lap: lastOut.lapNumber ?? null, at: tsMs(lastOut.ts), durationMs: lastOut.durationMillis ?? null } : null;
 
     // sürücü: currentDriverId -> drivers[].externalDriverID
     let driver = null;
@@ -119,6 +122,8 @@ export function adaptSnapshot(snap, trackedPids) {
       weather,
       tire,
       raceClock,
+      lastPit,
+      stintLaps: lastLap?.lapNumber != null ? lastLap.lapNumber - (lastOut?.lapNumber ?? 0) : null,
     }));
   }
   return map;

@@ -31,6 +31,8 @@ function fmtGap(ms) { return ms == null ? "—" : `${(ms / 1000).toFixed(1)}s`; 
 function fmtDelta(ms) { if (ms == null) return null; const s = (ms / 1000).toFixed(1); return ms > 0 ? `+${s}` : s; }
 function fmtTime(at) { const d = new Date(at); const p = (n) => String(n).padStart(2, "0"); return `${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`; }
 function fmtDur(ms) { if (ms == null) return "—"; const s = Math.floor(ms / 1000); const p = (n) => String(n).padStart(2, "0"); return `${p(Math.floor(s / 3600))}:${p(Math.floor((s % 3600) / 60))}:${p(s % 60)}`; }
+function fmtAgo(at) { if (at == null) return "—"; const s = Math.floor((Date.now() - at) / 1000); if (s < 60) return "az önce"; const m = Math.floor(s / 60); if (m < 60) return `${m} dk önce`; const h = Math.floor(m / 60); return `${h}s ${m % 60}dk önce`; }
+function fmtSecs(ms) { return ms == null ? "—" : `${(ms / 1000).toFixed(1)}sn`; }
 
 /* ---------- yarış saati ---------- */
 const clockEl = document.getElementById("clock");
@@ -173,6 +175,12 @@ function carCardHtml(car) {
       <div class="cell"><div class="k">En İyi</div><div class="v ${car.bestLapIsPurple ? "purple" : ""}">${fmtLap(car.bestLapMs)}</div></div>
       <div class="cell"><div class="k">Top Hız</div><div class="v">${car.topSpeedKph ? car.topSpeedKph + "<span class='delta' style='color:var(--dim)'>kph</span>" : "—"}</div></div>
       <div class="cell"><div class="k">Pit</div><div class="v">${car.pitCount ?? 0}</div></div>
+    </div>
+    <div class="pitline">
+      ${car.lastPit
+        ? `<span>Son pit <b>tur ${car.lastPit.lap ?? "—"}</b> · <b>${fmtAgo(car.lastPit.at)}</b> · duruş <b>${fmtSecs(car.lastPit.durationMs)}</b></span>`
+        : `<span>Henüz pit yok</span>`}
+      <span>Stint <b class="hl">${car.stintLaps ?? "—"} tur</b></span>
     </div>
     ${sectorsHtml(car.sectors)}
     <div class="battle">
