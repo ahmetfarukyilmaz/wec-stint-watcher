@@ -304,6 +304,13 @@ function renderBoard(state) {
     updateCard(p.card, car); // yerinde güncelleme — DOM yeniden kurulmaz
   }
   for (const p of Object.keys(panels)) if (!pids.includes(Number(p))) removePanel(Number(p));
+  // pozisyona göre sırala (sınıf grubu + sınıf içi pozisyon) ve panelleri yeniden diz
+  const order = pids.slice().sort((a, b) => {
+    const ca = state[a], cb = state[b];
+    const cl = (CLASS_ORDER[ca.classId] ?? 9) - (CLASS_ORDER[cb.classId] ?? 9);
+    return cl || (ca.classPosition ?? 999) - (cb.classPosition ?? 999);
+  });
+  for (const pid of order) boardEl.appendChild(panels[pid].panel); // mevcut DOM'u taşır, yeniden kurmaz
   const first = state[pids[0]];
   if (first) { renderWeather(first.weather); applyFlag(first.flag); applyClock(first.raceClock); }
 }
