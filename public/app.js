@@ -265,6 +265,7 @@ function updateCard(card, car) {
 /* ---------- panel yönetimi (araç başına kart + feed) ---------- */
 const panels = {}; // pid -> { panel, card, feedEl, feedTitle }
 const carNumbers = {}; // pid -> araç no (bildirim başlığı için)
+let lastOrderSig = ""; // panel sırası imzası — yalnızca değişince yeniden diz
 function ensurePanel(pid, carNumber) {
   if (panels[pid]) return panels[pid];
   const panel = document.createElement("div");
@@ -304,13 +305,17 @@ function renderBoard(state) {
     updateCard(p.card, car); // yerinde güncelleme — DOM yeniden kurulmaz
   }
   for (const p of Object.keys(panels)) if (!pids.includes(Number(p))) removePanel(Number(p));
-  // pozisyona göre sırala (sınıf grubu + sınıf içi pozisyon) ve panelleri yeniden diz
+  // pozisyona göre sırala (sınıf grubu + sınıf içi pozisyon) — yalnızca SIRA DEĞİŞTİYSE yeniden diz
   const order = pids.slice().sort((a, b) => {
     const ca = state[a], cb = state[b];
     const cl = (CLASS_ORDER[ca.classId] ?? 9) - (CLASS_ORDER[cb.classId] ?? 9);
     return cl || (ca.classPosition ?? 999) - (cb.classPosition ?? 999);
   });
-  for (const pid of order) boardEl.appendChild(panels[pid].panel); // mevcut DOM'u taşır, yeniden kurmaz
+  const orderSig = order.join(",");
+  if (orderSig !== lastOrderSig) {
+    lastOrderSig = orderSig;
+    for (const pid of order) boardEl.appendChild(panels[pid].panel); // sadece sıra değişince taşı
+  }
   const first = state[pids[0]];
   if (first) { renderWeather(first.weather); applyFlag(first.flag); applyClock(first.raceClock); }
 }
