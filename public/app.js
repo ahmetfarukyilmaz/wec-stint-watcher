@@ -173,7 +173,9 @@ function carCardHtml(car) {
     <div class="strip">
       <div class="cell"><div class="k">Son Tur</div><div class="v">${fmtLap(car.lastLapMs)}${deltaHtml}</div></div>
       <div class="cell"><div class="k">En İyi</div><div class="v ${car.bestLapIsPurple ? "purple" : ""}">${fmtLap(car.bestLapMs)}</div></div>
-      <div class="cell"><div class="k">Top Hız</div><div class="v">${car.topSpeedKph ? car.topSpeedKph + "<span class='delta' style='color:var(--dim)'>kph</span>" : "—"}</div></div>
+      ${car.topSpeedKph
+        ? `<div class="cell"><div class="k">Top Hız</div><div class="v">${car.topSpeedKph}<span class='delta' style='color:var(--dim)'>kph</span></div></div>`
+        : `<div class="cell"><div class="k">Lidere</div><div class="v">${fmtGap(car.gapToFirstMs)}</div></div>`}
       <div class="cell"><div class="k">Pit</div><div class="v">${car.pitCount ?? 0}</div></div>
     </div>
     <div class="pitline">
