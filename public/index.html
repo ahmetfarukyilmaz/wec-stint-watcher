@@ -162,6 +162,16 @@
     .id .driver { font-size: 22px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .id .meta { font-size: 12px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--dim); margin-top: 3px; }
     .id .meta .cls { color: var(--txt); }
+    /* FIA sürücü kategorisi */
+    .cat { display: inline-block; font-size: 9px; font-weight: 700; letter-spacing: .5px; padding: 2px 6px; border-radius: 4px; vertical-align: middle; }
+    .cat.p { background: #dbeafe; color: #0b2a52; }
+    .cat.g { background: #f1c84b; color: #3a2c00; }
+    .cat.s { background: #ccd1da; color: #1c1f26; }
+    .cat.b { background: #cd7f4e; color: #2a1400; }
+    .driver .cat { margin-left: 8px; }
+    .lineup { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 9px; }
+    .lineup .d { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; color: var(--dim); border: 1px solid var(--line); border-radius: 6px; padding: 3px 7px; }
+    .lineup .d.current { color: var(--txt); border-color: var(--flag); }
 
     .rm { position: absolute; top: 12px; right: 12px; z-index: 3; width: 26px; height: 26px; border-radius: 7px; border: 1px solid var(--line); background: var(--panel); color: var(--dim); cursor: pointer; font-size: 14px; line-height: 1; transition: color .15s, border-color .15s; }
     .rm:hover { color: var(--red); border-color: var(--red); }

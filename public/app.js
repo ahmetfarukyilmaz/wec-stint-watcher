@@ -43,6 +43,14 @@ function applyClock(rc) {
   clockValEl.textContent = fmtDur(rc.remainingMs);
 }
 
+/* ---------- FIA sürücü kategorisi ---------- */
+const CAT = { P: { label: "PLATINUM", cls: "p" }, G: { label: "GOLD", cls: "g" }, S: { label: "SILVER", cls: "s" }, B: { label: "BRONZE", cls: "b" } };
+function catBadge(cat, full) { const c = CAT[cat]; return c ? `<span class="cat ${c.cls}">${full ? c.label : cat}</span>` : ""; }
+function lineupHtml(drivers) {
+  if (!drivers || !drivers.length) return "";
+  return `<div class="lineup">${drivers.map((d) => `<span class="d ${d.current ? "current" : ""}">${d.name}${catBadge(d.cat, false)}</span>`).join("")}</div>`;
+}
+
 /* ---------- lastik rozeti ---------- */
 function tireHtml(tire) {
   if (!tire) return "";
@@ -165,8 +173,9 @@ function carCardHtml(car) {
     <div class="car-head">
       <div class="num">${car.carNumber ?? pid}</div>
       <div class="id">
-        <div class="driver">${car.currentDriver ?? "—"}</div>
+        <div class="driver">${car.currentDriver ?? "—"} ${catBadge(car.currentDriverCat, true)}</div>
         <div class="meta"><span class="cls">${car.classId ?? "—"}</span> · tur ${car.lapNumber ?? "—"} · ${car.pitCount ?? 0} pit ${car.inPit ? "· PİTTE" : ""}${tireHtml(car.tire)}</div>
+        ${lineupHtml(car.drivers)}
       </div>
       <div class="posbox"><div class="plabel">Sınıf</div><div class="pval">P${car.classPosition ?? "—"}</div><div class="overall">genel ${car.position ?? "—"}.</div></div>
     </div>

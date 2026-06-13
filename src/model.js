@@ -18,6 +18,8 @@
  * @property {boolean} inPit
  * @property {number} pitCount
  * @property {string|null} currentDriver
+ * @property {string|null} currentDriverCat  FIA kategori: P/G/S/B
+ * @property {Array<{name:string,cat:string|null,current:boolean}>} drivers  sürücü kadrosu
  * @property {string|null} flag
  * @property {number|null} topSpeedKph     son speed trap hızı
  * @property {Array<{num:number,ms:number,color:string}>} sectors  mevcut tur sektörleri
@@ -49,6 +51,8 @@ export function makeCarState(partial = {}) {
     inPit: partial.inPit ?? false,
     pitCount: partial.pitCount ?? 0,
     currentDriver: partial.currentDriver ?? null,
+    currentDriverCat: partial.currentDriverCat ?? null,
+    drivers: partial.drivers ?? [],
     flag: partial.flag ?? null,
     topSpeedKph: partial.topSpeedKph ?? null,
     sectors: partial.sectors ?? [],

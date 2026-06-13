@@ -69,6 +69,26 @@ test("currentDriver currentDriverId -> drivers[].externalDriverID ile çözülü
   assert.equal(car.currentDriver, "B");
 });
 
+test("sürücü FIA kategorisi + kadro çıkarılır", () => {
+  const snap = {
+    ranks: [{ pid: 9, overallPosition: 1, position: 1, carNumber: "9", classId: "X" }],
+    gaps: [], laps: [], bestLaps: [], pitIn: [], pitOut: [], flags: [],
+    participants: [{ pid: 9, currentDriverId: "2", drivers: [
+      { externalDriverID: "1", displayName: "James COTTINGHAM", threeLettersName: "COT", categoryId: "B" },
+      { externalDriverID: "2", displayName: "Timur BOGUSLAVSKIY", threeLettersName: "BOG", categoryId: "S" },
+      { externalDriverID: "3", displayName: "Ayhancan Güven", threeLettersName: "GÜV", categoryId: "P" },
+    ] }],
+  };
+  const car = adaptSnapshot(snap, [9]).get(9);
+  assert.equal(car.currentDriver, "Timur BOGUSLAVSKIY");
+  assert.equal(car.currentDriverCat, "S");
+  assert.equal(car.drivers.length, 3);
+  const guven = car.drivers.find((d) => d.name === "GÜV");
+  assert.equal(guven.cat, "P");
+  assert.equal(guven.current, false);
+  assert.equal(car.drivers.find((d) => d.name === "BOG").current, true);
+});
+
 test("lapNumber pid'in en yüksek lapNumber'ından gelir", () => {
   const snap = {
     ranks: [{ pid: 9, overallPosition: 1, position: 1, carNumber: "9", classId: "X" }],

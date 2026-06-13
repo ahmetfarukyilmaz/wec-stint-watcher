@@ -90,11 +90,17 @@ export function adaptSnapshot(snap, trackedPids) {
     const lastOut = pitOuts.reduce((m, x) => (m == null || tsMs(x.ts) > tsMs(m.ts) ? x : m), null);
     const lastPit = lastOut ? { lap: lastOut.lapNumber ?? null, at: tsMs(lastOut.ts), durationMs: lastOut.durationMillis ?? null } : null;
 
-    // sürücü: currentDriverId -> drivers[].externalDriverID
-    let driver = null;
-    if (part?.drivers && part.currentDriverId != null) {
+    // sürücü: currentDriverId -> drivers[].externalDriverID + FIA kategori (P/G/S/B)
+    let driver = null, driverCat = null, drivers = [];
+    if (part?.drivers) {
+      drivers = part.drivers.map((dr) => ({
+        name: dr.threeLettersName || dr.displayName || "?",
+        cat: dr.categoryId ?? null,
+        current: part.currentDriverId != null && String(dr.externalDriverID) === String(part.currentDriverId),
+      }));
       const d = part.drivers.find((x) => String(x.externalDriverID) === String(part.currentDriverId));
       driver = d?.displayName ?? null;
+      driverCat = d?.categoryId ?? null;
     }
 
     map.set(pid, makeCarState({
@@ -115,6 +121,8 @@ export function adaptSnapshot(snap, trackedPids) {
       inPit: lastInTs > lastOutTs,
       pitCount: pitIns.length,
       currentDriver: driver,
+      currentDriverCat: driverCat,
+      drivers,
       flag: currentFlag,
       topSpeedKph,
       sectors,
