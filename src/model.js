@@ -19,6 +19,10 @@
  * @property {number} pitCount
  * @property {string|null} currentDriver
  * @property {string|null} flag
+ * @property {number|null} topSpeedKph     son speed trap hızı
+ * @property {Array<{num:number,ms:number,color:string}>} sectors  mevcut tur sektörleri
+ * @property {Array<{lap:number,ms:number,valid:boolean}>} lapHistory  tur zamanı serisi
+ * @property {{airTemp:number,trackTemp:number,humidity:number,windKph:number,windDir:string,sky:string}|null} weather
  */
 
 /** @param {Partial<CarState>} partial @returns {CarState} */
@@ -42,6 +46,10 @@ export function makeCarState(partial = {}) {
     pitCount: partial.pitCount ?? 0,
     currentDriver: partial.currentDriver ?? null,
     flag: partial.flag ?? null,
+    topSpeedKph: partial.topSpeedKph ?? null,
+    sectors: partial.sectors ?? [],
+    lapHistory: partial.lapHistory ?? [],
+    weather: partial.weather ?? null,
   };
 }
 

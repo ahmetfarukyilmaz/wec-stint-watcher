@@ -105,3 +105,19 @@ test("battle kapalıysa üretilmez", () => {
   const evs = detectEvents(makeCarState({ participantId: 1, gapBehindMs: 3000, behindCarNumber: "92" }), makeCarState({ participantId: 1, gapBehindMs: 1900, behindCarNumber: "92" }), c, NOW);
   assert.equal(evs.find((x) => x.type === "battle_behind"), undefined);
 });
+
+test("gökyüzü değişince weather_change üretir", () => {
+  const c = { events: { weather: true }, gapThresholdSeconds: 10 };
+  const prev = makeCarState({ participantId: 1, weather: { sky: "Cloudy", trackTemp: 33 } });
+  const next = makeCarState({ participantId: 1, weather: { sky: "Light Rain", trackTemp: 30 } });
+  const e = detectEvents(prev, next, c, NOW).find((x) => x.type === "weather_change");
+  assert.ok(e);
+  assert.equal(e.payload.from, "Cloudy");
+  assert.equal(e.payload.to, "Light Rain");
+});
+
+test("hava aynıysa weather_change üretmez", () => {
+  const c = { events: { weather: true }, gapThresholdSeconds: 10 };
+  const s = makeCarState({ participantId: 1, weather: { sky: "Cloudy" } });
+  assert.equal(detectEvents(s, makeCarState({ participantId: 1, weather: { sky: "Cloudy" } }), c, NOW).find((x) => x.type === "weather_change"), undefined);
+});

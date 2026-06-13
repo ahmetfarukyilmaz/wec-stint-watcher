@@ -159,6 +159,33 @@
     .delta.up { color: var(--red); }      /* yavaş */
     .delta.down { color: var(--signal); } /* hızlı */
 
+    /* sektörler */
+    .sectors { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 14px; }
+    .sec { background: var(--panel); border: 1px solid var(--line); border-left: 3px solid var(--dimmer); border-radius: 8px; padding: 8px 10px; }
+    .sec .sk { font-size: 10px; letter-spacing: 1.5px; color: var(--dim); text-transform: uppercase; }
+    .sec .sv { font-family: "JetBrains Mono", monospace; font-weight: 700; font-size: 15px; margin-top: 3px; }
+    .sec.purple { border-left-color: var(--purple); } .sec.purple .sv { color: var(--purple); }
+    .sec.green  { border-left-color: var(--signal); } .sec.green .sv { color: var(--signal); }
+    .sec.yellow { border-left-color: var(--amber); }
+    .sec.gray   { border-left-color: var(--dimmer); }
+
+    /* tur zamanı grafiği */
+    .chart { margin-top: 18px; }
+    .chart .cl { display: flex; justify-content: space-between; font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: var(--dim); margin-bottom: 8px; }
+    .chart svg { display: block; width: 100%; height: 96px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; }
+    .chart .line { fill: none; stroke: var(--flag); stroke-width: 2; vector-effect: non-scaling-stroke; }
+    .chart .area { fill: var(--flag); opacity: .08; }
+    .chart .best { stroke: var(--purple); stroke-width: 1; stroke-dasharray: 3 4; opacity: .6; vector-effect: non-scaling-stroke; }
+    .chart .pit { fill: var(--amber); }
+    .chart .dot { fill: var(--flag); }
+
+    /* hava şeridi */
+    .weatherbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; padding: 10px 26px; border-bottom: 1px solid var(--line-soft); background: color-mix(in srgb, var(--panel) 50%, transparent); }
+    .wx { display: inline-flex; align-items: center; gap: 7px; font-size: 12px; color: var(--dim); }
+    .wx b { font-family: "JetBrains Mono", monospace; color: var(--txt); font-weight: 700; }
+    .wx .sky { color: var(--txt); letter-spacing: .5px; }
+    .wx.rain b, .wx.rain .sky { color: var(--amber); }
+
     /* battle gauge */
     .battle { margin-top: 20px; }
     .battle .bl { display: flex; justify-content: space-between; font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: var(--dim); margin-bottom: 9px; }
@@ -216,6 +243,8 @@
     <button id="themeToggle" title="Tema değiştir" aria-label="Tema değiştir">◐</button>
     <button id="enableNotif">Bildirimleri Aç</button>
   </header>
+
+  <div class="weatherbar" id="weather"></div>
 
   <main>
     <section>

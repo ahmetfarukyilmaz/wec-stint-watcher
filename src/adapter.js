@@ -16,6 +16,17 @@ export function adaptSnapshot(snap, trackedPids) {
   const currentFlag = snap.flags?.length ? (snap.flags[snap.flags.length - 1].flag ?? snap.flags[snap.flags.length - 1].flagType ?? null) : null;
   const gapOf = (pid) => byPid(snap.gaps ?? [], pid)[0];
 
+  // Hava global (pid=-1); tek obje döner (eski sürümlerde dizi olabilir)
+  const w = Array.isArray(snap.weather) ? snap.weather[0] : snap.weather;
+  const weather = w && w.temperature != null ? {
+    airTemp: w.temperature ?? null,
+    trackTemp: w.trackTemperature ?? null,
+    humidity: w.humidity ?? null,
+    windKph: w.windSpeedKph ?? null,
+    windDir: w.windDirectionCode ?? null,
+    sky: w.sky ?? null,
+  } : null;
+
   for (const pid of trackedPids) {
     const rank = byPid(snap.ranks ?? [], pid)[0];
     const gap = gapOf(pid);
@@ -37,9 +48,25 @@ export function adaptSnapshot(snap, trackedPids) {
       }
     }
 
-    // son tur: en yüksek lapNumber
+    // son tur: en yüksek lapNumber + tur serisi (grafik için, son 50 tur)
     const laps = byPid(snap.laps ?? [], pid);
     const lastLap = laps.reduce((m, l) => (m == null || l.lapNumber > m.lapNumber ? l : m), null);
+    const lapHistory = laps
+      .slice()
+      .sort((a, b) => a.lapNumber - b.lapNumber)
+      .slice(-50)
+      .map((l) => ({ lap: l.lapNumber, ms: l.lapTimeMillis, valid: l.isValid !== false }));
+
+    // speed trap (kph)
+    const ts = byPid(snap.topSpeed ?? [], pid)[0];
+    const topSpeedKph = ts?.speed ? ts.speed : null;
+
+    // mevcut tur sektörleri (obje pid -> array)
+    const sectorRows = (snap.sectors && snap.sectors[String(pid)]) || (snap.sectors && snap.sectors[pid]) || [];
+    const sectors = sectorRows
+      .slice()
+      .sort((a, b) => a.sectorNumber - b.sectorNumber)
+      .map((s) => ({ num: s.sectorNumber, ms: s.sectorTimeMillis, color: s.color ?? null }));
 
     // pit: pid'in pit-in sayısı + son in/out karşılaştırması
     const pitIns = byPid(snap.pitIn ?? [], pid);
@@ -73,6 +100,10 @@ export function adaptSnapshot(snap, trackedPids) {
       pitCount: pitIns.length,
       currentDriver: driver,
       flag: currentFlag,
+      topSpeedKph,
+      sectors,
+      lapHistory,
+      weather,
     }));
   }
   return map;

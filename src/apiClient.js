@@ -1,5 +1,6 @@
 // src/apiClient.js
-const ENDPOINTS = {
+// Dizi dönen endpoint'ler: {sid} sona eklenir.
+const ARR_ENDPOINTS = {
   ranks: "/live/ranks/",
   gaps: "/live/gaps/",
   laps: "/live/laps/",
@@ -8,6 +9,7 @@ const ENDPOINTS = {
   pitOut: "/live/pit-out/",
   participants: "/live/participants/",
   flags: "/live/race-flags/",
+  topSpeed: "/live/current-top-speeds/",
 };
 
 /**
@@ -15,26 +17,33 @@ const ENDPOINTS = {
  * @param {typeof fetch} [fetchImpl]
  */
 export function createApiClient(cfg, fetchImpl = fetch) {
-  async function getOne(path) {
+  async function getJson(url, fallback) {
     try {
-      const res = await fetchImpl(`${cfg.apiBase}${path}${cfg.sessionId}`, {
-        headers: { Accept: "application/json", "User-Agent": "wec-stint-watcher" },
-      });
-      if (!res.ok) { console.warn(`[api] ${path} HTTP ${res.status}`); return []; }
+      const res = await fetchImpl(url, { headers: { Accept: "application/json", "User-Agent": "wec-stint-watcher" } });
+      if (!res.ok) { console.warn(`[api] ${url} HTTP ${res.status}`); return fallback; }
       const data = await res.json();
-      return Array.isArray(data) ? data : [];
+      if (Array.isArray(fallback)) return Array.isArray(data) ? data : fallback;
+      return (data && typeof data === "object") ? data : fallback;
     } catch (e) {
-      console.warn(`[api] ${path} hata: ${e.message}`);
-      return [];
+      console.warn(`[api] ${url} hata: ${e.message}`);
+      return fallback;
     }
   }
 
+  const url = (path, suffix = "") => `${cfg.apiBase}${path}${cfg.sessionId}${suffix}`;
+
   return {
     async fetchAll() {
-      const keys = Object.keys(ENDPOINTS);
-      const results = await Promise.all(keys.map((k) => getOne(ENDPOINTS[k])));
-      const snap = {};
-      keys.forEach((k, i) => { snap[k] = results[i]; });
+      const arrKeys = Object.keys(ARR_ENDPOINTS);
+      const [arrResults, sectors, weather] = await Promise.all([
+        Promise.all(arrKeys.map((k) => getJson(url(ARR_ENDPOINTS[k]), []))),
+        // sektörler {sid}/current-lap ile biter ve pid'e göre OBJE döner
+        getJson(url("/live/sectors/", "/current-lap"), {}),
+        // hava tek OBJE döner (dizi değil)
+        getJson(url("/live/weather-current/"), {}),
+      ]);
+      const snap = { sectors, weather };
+      arrKeys.forEach((k, i) => { snap[k] = arrResults[i]; });
       return snap;
     },
   };

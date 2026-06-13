@@ -55,6 +55,10 @@ export function detectEvents(prev, next, cfg, at) {
     }, at));
   }
 
+  if (on("weather") && next.weather?.sky && prev.weather?.sky && next.weather.sky !== prev.weather.sky) {
+    events.push(makeEvent("weather_change", pid, { from: prev.weather.sky, to: next.weather.sky, trackTemp: next.weather.trackTemp }, at));
+  }
+
   if (on("battle")) {
     const thr = (cfg.battleThresholdSeconds ?? 2) * 1000;
     // Rakip eşik dışındayken (ya da bilinmezken) eşik içine girince bir kez tetikle (histerezis)

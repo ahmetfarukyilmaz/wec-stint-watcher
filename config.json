@@ -11,7 +11,8 @@
     "battle": true,
     "driver_change": true,
     "gap_threshold": true,
-    "flag": true
+    "flag": true,
+    "weather": true
   },
   "gapThresholdSeconds": 10,
   "battleThresholdSeconds": 2,

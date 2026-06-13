@@ -3,6 +3,7 @@ const statusEl = document.getElementById("status");
 const flagTextEl = document.getElementById("flagText");
 const eventsEl = document.getElementById("events");
 const carsEl = document.getElementById("cars");
+const weatherEl = document.getElementById("weather");
 
 document.getElementById("enableNotif").addEventListener("click", () => {
   if ("Notification" in window) Notification.requestPermission();
@@ -67,9 +68,63 @@ function rivalHtml(carNo, gapMs, side, arrow) {
     </div>`;
 }
 
+/* ---------- sektörler ---------- */
+const SEC_CLASS = { Purple: "purple", Green: "green", Yellow: "yellow", Gray: "gray" };
+function fmtSec(ms) { return ms == null ? "—" : (ms / 1000).toFixed(3); }
+function sectorsHtml(sectors) {
+  const cells = [1, 2, 3].map((n) => {
+    const s = (sectors || []).find((x) => x.num === n);
+    const cls = s ? (SEC_CLASS[s.color] || "gray") : "gray";
+    return `<div class="sec ${cls}"><div class="sk">S${n}</div><div class="sv">${s ? fmtSec(s.ms) : "—"}</div></div>`;
+  });
+  return `<div class="sectors">${cells.join("")}</div>`;
+}
+
+/* ---------- tur zamanı grafiği (SVG) ---------- */
+function lapChartSvg(history, bestMs) {
+  const laps = (history || []).filter((l) => l.ms > 0);
+  if (laps.length < 2) return `<svg viewBox="0 0 100 40" preserveAspectRatio="none"></svg>`;
+  // ölçek için aşırı uçları (pit/in-out/trafik) kırp: medyanın %8 üstünde plato yap
+  // böylece pit turu tepeyi ezmez, gerçek tempo bandı (saniyeler) okunur kalır
+  const valids = laps.filter((l) => l.valid).map((l) => l.ms).sort((a, b) => a - b);
+  const med = valids.length ? valids[Math.floor(valids.length / 2)] : laps[0].ms;
+  const cap = med * 1.08;
+  const vals = laps.map((l) => Math.min(l.ms, cap));
+  const min = Math.min(...vals), max = Math.max(...vals);
+  const span = Math.max(max - min, 1);
+  const W = 100, H = 40, pad = 3;
+  const x = (i) => pad + (i / (laps.length - 1)) * (W - 2 * pad);
+  const y = (v) => pad + (1 - (v - min) / span) * (H - 2 * pad);
+  const pts = vals.map((v, i) => `${x(i).toFixed(2)},${y(v).toFixed(2)}`);
+  const area = `${pad},${H - pad} ${pts.join(" ")} ${(W - pad)},${H - pad}`;
+  const bestY = (bestMs != null && bestMs >= min && bestMs <= max) ? y(bestMs).toFixed(2) : null;
+  const pitDots = laps.map((l, i) => (!l.valid || l.ms >= cap) ? `<circle class="pit" cx="${x(i).toFixed(2)}" cy="${y(Math.min(l.ms, cap)).toFixed(2)}" r="1.4"/>` : "").join("");
+  const last = laps.length - 1;
+  return `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
+    <polygon class="area" points="${area}"/>
+    ${bestY ? `<line class="best" x1="${pad}" y1="${bestY}" x2="${W - pad}" y2="${bestY}"/>` : ""}
+    <polyline class="line" points="${pts.join(" ")}"/>
+    ${pitDots}
+    <circle class="dot" cx="${x(last).toFixed(2)}" cy="${y(vals[last]).toFixed(2)}" r="1.8"/>
+  </svg>`;
+}
+
+/* ---------- hava ---------- */
+function renderWeather(w) {
+  if (!w) { weatherEl.innerHTML = `<span class="wx">Hava verisi bekleniyor…</span>`; return; }
+  const rain = /rain|shower|storm|wet/i.test(w.sky || "");
+  weatherEl.innerHTML = `
+    <span class="wx ${rain ? "rain" : ""}"><span class="sky">${w.sky ?? "—"}</span></span>
+    <span class="wx">Hava <b>${w.airTemp ?? "—"}°</b></span>
+    <span class="wx">Pist <b>${w.trackTemp ?? "—"}°</b></span>
+    <span class="wx">Nem <b>${w.humidity ?? "—"}%</b></span>
+    <span class="wx">Rüzgar <b>${w.windKph ?? "—"}</b> kph ${w.windDir ?? ""}</span>`;
+}
+
 function renderCars(state) {
   const cars = Object.values(state);
   if (!cars.length) { carsEl.innerHTML = `<div class="empty">Veri bekleniyor…</div>`; return; }
+  if (cars[0]) renderWeather(cars[0].weather);
   carsEl.innerHTML = cars.map((car) => {
     const pid = car.participantId;
     const aArrow = arrowFor(lastSeen[pid]?.gapAheadMs, car.gapAheadMs);
@@ -97,9 +152,11 @@ function renderCars(state) {
       <div class="strip">
         <div class="cell"><div class="k">Son Tur</div><div class="v">${fmtLap(car.lastLapMs)}${deltaHtml}</div></div>
         <div class="cell"><div class="k">En İyi</div><div class="v ${car.bestLapIsPurple ? "purple" : ""}">${fmtLap(car.bestLapMs)}</div></div>
-        <div class="cell"><div class="k">Önü</div><div class="v">${fmtGap(car.gapAheadMs)}</div></div>
-        <div class="cell"><div class="k">Arkası</div><div class="v">${fmtGap(car.gapBehindMs)}</div></div>
+        <div class="cell"><div class="k">Top Hız</div><div class="v">${car.topSpeedKph ? car.topSpeedKph + "<span class='delta' style='color:var(--dim)'>kph</span>" : "—"}</div></div>
+        <div class="cell"><div class="k">Pit</div><div class="v">${car.pitCount ?? 0}</div></div>
       </div>
+
+      ${sectorsHtml(car.sectors)}
 
       <div class="battle">
         <div class="bl"><span>◄ ÖNDEKİ #${car.aheadCarNumber ?? "—"}</span><span>ARKADAKİ #${car.behindCarNumber ?? "—"} ►</span></div>
@@ -109,6 +166,11 @@ function renderCars(state) {
           <div class="me">#${car.carNumber ?? pid}</div>
           ${rivalHtml(car.behindCarNumber, car.gapBehindMs, "behind", bArrow)}
         </div>
+      </div>
+
+      <div class="chart">
+        <div class="cl"><span>TUR ZAMANI · son ${(car.lapHistory || []).length} tur</span><span>en iyi ${fmtLap(car.bestLapMs)}</span></div>
+        ${lapChartSvg(car.lapHistory, car.bestLapMs)}
       </div>
     </div>`;
   }).join("");
@@ -132,9 +194,10 @@ const META = {
   driver_change: (p) => ({ ico: "⇄", accent: "var(--txt)", txt: `Sürücü değişti · <b>${p.from} → ${p.to}</b>` }),
   gap_threshold: (p) => ({ ico: "≈", accent: "var(--amber)", txt: `Öndeki araca fark <b>${p.thresholdSeconds}sn</b> altına indi` }),
   flag:          (p) => ({ ico: "⚑", accent: "var(--flag)", txt: `Bayrak · <b>${p.to}</b>` }),
+  weather_change:(p) => ({ ico: "☁", accent: "var(--amber)", txt: `Hava değişti · <b>${p.from} → ${p.to}</b>${p.trackTemp != null ? ` · pist ${p.trackTemp}°` : ""}` }),
   stint_summary: (p) => ({ ico: "Σ", accent: "var(--purple)", txt: `<b>Stint özeti</b> · sınıf P${p.classPosition} · ${p.pitCount} pit · en iyi ${fmtLap(p.bestLapMs)} · ${p.currentDriver ?? "—"}` }),
 };
-const NOTIFY = new Set(["position_change", "pit_in", "pit_out", "best_lap", "fastest_lap", "battle_ahead", "battle_behind", "driver_change", "gap_threshold", "flag"]);
+const NOTIFY = new Set(["position_change", "pit_in", "pit_out", "best_lap", "fastest_lap", "battle_ahead", "battle_behind", "driver_change", "gap_threshold", "flag", "weather_change"]);
 
 function addEvent(ev, silent = false) {
   if (ev.type === "connection") {
@@ -177,6 +240,7 @@ if (location.search.includes("static")) {
     { type: "battle_behind", participantId: 91, at: t, payload: { carNumber: "23", gapMs: 461 } },
     { type: "lap_completed", participantId: 91, at: t - 9000, payload: { lap: 69, lapMs: 239136, deltaPrevMs: 1340, deltaBestMs: 4165 } },
     { type: "fastest_lap", participantId: 91, at: t - 60000, payload: { bestLapMs: 234971 } },
+    { type: "weather_change", participantId: 91, at: t - 90000, payload: { from: "Cloudy", to: "Light Rain", trackTemp: 29 } },
     { type: "position_change", participantId: 91, at: t - 120000, payload: { from: 3, to: 2, gained: true } },
     { type: "pit_out", participantId: 91, at: t - 300000, payload: {} },
     { type: "driver_change", participantId: 91, at: t - 360000, payload: { from: "Ayhancan GÜVEN", to: "James COTTINGHAM" } },

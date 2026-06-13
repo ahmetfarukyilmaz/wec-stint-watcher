@@ -117,3 +117,53 @@ test("sınıf lideriyse aheadCarNumber/gapAhead null; sonuncuysa behind null", (
   assert.equal(last.behindCarNumber, null);
   assert.equal(last.gapBehindMs, null);
 });
+
+test("hava durumu global kayıttan normalize edilir", () => {
+  const snap = {
+    ranks: [{ pid: 9, overallPosition: 1, position: 1, carNumber: "9", classId: "X" }],
+    gaps: [], laps: [], bestLaps: [], pitIn: [], pitOut: [], participants: [], flags: [],
+    weather: [{ temperature: 26.1, trackTemperature: 33.3, humidity: 54, windSpeedKph: 3, windDirectionCode: "WSW", sky: "Cloudy", pid: -1 }],
+  };
+  const car = adaptSnapshot(snap, [9]).get(9);
+  assert.equal(car.weather.airTemp, 26.1);
+  assert.equal(car.weather.trackTemp, 33.3);
+  assert.equal(car.weather.sky, "Cloudy");
+  assert.equal(car.weather.windKph, 3);
+});
+
+test("topSpeedKph speed alanından gelir (0 ise null)", () => {
+  const base = { ranks: [{ pid: 9, overallPosition: 1, position: 1, carNumber: "9", classId: "X" }], gaps: [], laps: [], bestLaps: [], pitIn: [], pitOut: [], participants: [], flags: [] };
+  assert.equal(adaptSnapshot({ ...base, topSpeed: [{ pid: 9, speed: 287 }] }, [9]).get(9).topSpeedKph, 287);
+  assert.equal(adaptSnapshot({ ...base, topSpeed: [{ pid: 9, speed: 0 }] }, [9]).get(9).topSpeedKph, null);
+});
+
+test("sektörler obje(pid->array)'den sıralı çıkarılır", () => {
+  const snap = {
+    ranks: [{ pid: 9, overallPosition: 1, position: 1, carNumber: "9", classId: "X" }],
+    gaps: [], laps: [], bestLaps: [], pitIn: [], pitOut: [], participants: [], flags: [],
+    sectors: { "9": [
+      { sectorNumber: 2, sectorTimeMillis: 79886, color: "Green" },
+      { sectorNumber: 1, sectorTimeMillis: 33612, color: "Purple" },
+    ] },
+  };
+  const car = adaptSnapshot(snap, [9]).get(9);
+  assert.equal(car.sectors.length, 2);
+  assert.equal(car.sectors[0].num, 1);
+  assert.equal(car.sectors[0].color, "Purple");
+  assert.equal(car.sectors[1].ms, 79886);
+});
+
+test("lapHistory tur numarasına göre sıralı {lap,ms,valid} dizisi verir", () => {
+  const snap = {
+    ranks: [{ pid: 9, overallPosition: 1, position: 1, carNumber: "9", classId: "X" }],
+    gaps: [], bestLaps: [], pitIn: [], pitOut: [], participants: [], flags: [],
+    laps: [
+      { pid: 9, lapNumber: 7, lapTimeMillis: 207000, isValid: true },
+      { pid: 9, lapNumber: 5, lapTimeMillis: 208000, isValid: true },
+      { pid: 9, lapNumber: 6, lapTimeMillis: 275000, isValid: false },
+    ],
+  };
+  const h = adaptSnapshot(snap, [9]).get(9).lapHistory;
+  assert.deepEqual(h.map((x) => x.lap), [5, 6, 7]);
+  assert.equal(h[1].valid, false);
+});
