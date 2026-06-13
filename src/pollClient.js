@@ -5,14 +5,29 @@ import { createScheduler } from "./scheduler.js";
 /**
  * @param {{trackedParticipants:number[], pollIntervalSeconds:number}} cfg
  * @param {{fetchAll: () => Promise<object>}} apiClient
+ * @param {() => number[]} [getTracked]  izlenecek pid'leri dinamik veren fonksiyon
  */
-export function createPollClient(cfg, apiClient) {
+export function createPollClient(cfg, apiClient, getTracked) {
   const handlers = new Set();
   const emit = (map) => { for (const h of handlers) h(map); };
+  const tracked = getTracked ?? (() => cfg.trackedParticipants);
+  let cars = []; // tüm araçların hafif listesi (seçici için)
+
+  function buildCars(snap) {
+    const drivers = new Map();
+    for (const p of snap.participants ?? []) drivers.set(Number(p.pid), p.displayName ?? p.teamName ?? null);
+    return (snap.ranks ?? []).map((r) => ({
+      pid: Number(r.pid),
+      carNumber: r.carNumber ?? null,
+      classId: r.classId ?? null,
+      team: drivers.get(Number(r.pid)) ?? null,
+    })).filter((c) => c.carNumber != null);
+  }
 
   async function pollOnce() {
     const snap = await apiClient.fetchAll();
-    const map = adaptSnapshot(snap, cfg.trackedParticipants);
+    cars = buildCars(snap);
+    const map = adaptSnapshot(snap, tracked());
     emit(map);
     return map;
   }
@@ -21,6 +36,7 @@ export function createPollClient(cfg, apiClient) {
 
   return {
     onSnapshot(cb) { handlers.add(cb); },
+    getCars() { return cars; },
     pollOnce,
     start() { scheduler.start(); return pollOnce(); }, // ilk poll'u hemen yap
     stop() { scheduler.stop(); },

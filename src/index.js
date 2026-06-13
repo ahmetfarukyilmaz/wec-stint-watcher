@@ -1,6 +1,7 @@
 // src/index.js
 import { loadConfig } from "./config.js";
 import { createStore } from "./store.js";
+import { createTrackedStore } from "./trackedStore.js";
 import { createApiClient } from "./apiClient.js";
 import { createPollClient } from "./pollClient.js";
 import { detectEvents } from "./eventDetector.js";
@@ -11,30 +12,47 @@ import { createWebServer } from "./webServer.js";
 
 const cfg = loadConfig();
 const store = createStore(cfg.dataDir);
-const tracked = cfg.trackedParticipants;
+const trackedStore = createTrackedStore(cfg.dataDir, cfg.trackedParticipants);
 
 // Restart sonrası son durumu yükle
 const stateMap = new Map(Object.entries(store.loadState()).map(([k, v]) => [Number(k), v]));
-// Önceki durumu olan pid'ler "baseline'lı" sayılır; soğuk başlangıçta bir pid'in ilk
-// snapshot'ı olay ÜRETMEDEN baseline olarak alınır (sahte başlangıç bildirimi olmaz).
+// Önceki durumu olan pid'ler "baseline'lı" sayılır; soğuk başlangıçta (veya çalışırken
+// eklenen bir araçta) ilk snapshot olay ÜRETMEDEN baseline olarak alınır.
 const baselined = new Set(stateMap.keys());
+
+const api = createApiClient(cfg);
+const poll = createPollClient(cfg, api, () => trackedStore.list());
+
+function addCar(carNumber) {
+  const car = (poll.getCars() || []).find((c) => String(c.carNumber) === String(carNumber).trim());
+  if (!car) return { ok: false, error: `#${carNumber} bulunamadı` };
+  trackedStore.add(car.pid);
+  return { ok: true, pid: car.pid, carNumber: car.carNumber };
+}
+function removeCar(pid) {
+  pid = Number(pid);
+  const ok = trackedStore.remove(pid);
+  baselined.delete(pid);
+  stateMap.delete(pid);
+  return { ok };
+}
 
 const web = createWebServer({
   port: cfg.webPort,
   getState: () => Object.fromEntries(stateMap),
-  getEvents: () => store.readEvents().slice(-200), // sayfa açılışında geçmiş akış
+  getEvents: () => store.readEvents().slice(-400), // sayfa açılışında geçmiş akış (çoklu araç)
+  getCars: () => poll.getCars(),
+  getTracked: () => trackedStore.list(),
+  addCar,
+  removeCar,
 });
 
-const api = createApiClient(cfg);
-const poll = createPollClient(cfg, api);
-
 poll.onSnapshot((snapshot) => {
-  for (const pid of tracked) {
+  for (const pid of trackedStore.list()) {
     const next = snapshot.get(pid);
     if (!next) continue;
     if (!baselined.has(pid)) {
-      // İlk görülen pid: baseline olarak kaydet, olay üretme
-      stateMap.set(pid, next);
+      stateMap.set(pid, next); // ilk görülen araç: baseline, olay yok
       baselined.add(pid);
       continue;
     }
@@ -44,14 +62,13 @@ poll.onSnapshot((snapshot) => {
     for (const ev of events) { store.appendEvent(ev); web.broadcast(ev); }
   }
   store.saveState(Object.fromEntries(stateMap));
-  // Her poll'da canlı panel güncellemesi (bildirim üretmez)
   web.broadcast({ type: "tick", at: Date.now(), state: Object.fromEntries(stateMap) });
 });
 
 // Periyodik stint özeti
 const summaryScheduler = createScheduler(cfg.stintSummaryIntervalMinutes * 60 * 1000, () => {
   const recent = store.readEvents();
-  for (const pid of tracked) {
+  for (const pid of trackedStore.list()) {
     const st = stateMap.get(pid);
     if (!st) continue;
     const summary = buildStintSummary(st, recent.filter((e) => e.participantId === pid), Date.now());
@@ -64,6 +81,6 @@ const { port } = await web.listen();
 console.log(`[web] http://127.0.0.1:${port}`);
 await poll.start();
 summaryScheduler.start();
-console.log(`[poll] SID-${cfg.sessionId} izleniyor (her ${cfg.pollIntervalSeconds}sn); takip: ${tracked.join(", ")}`);
+console.log(`[poll] SID-${cfg.sessionId} izleniyor (her ${cfg.pollIntervalSeconds}sn); takip: ${trackedStore.list().join(", ")}`);
 
 process.on("SIGINT", async () => { poll.stop(); summaryScheduler.stop(); await web.close(); process.exit(0); });
