@@ -96,10 +96,11 @@
     /* lastik rozeti */
     .tire { display: inline-flex; align-items: center; gap: 5px; padding: 1px 7px; border-radius: 5px; border: 1px solid var(--line); margin-left: 6px; font-size: 11px; }
     .tire b { font-family: "JetBrains Mono", monospace; }
-    .tire.fresh { border-color: var(--signal); color: var(--signal); }
-    .tire.mid { color: var(--txt); }
-    .tire.old { border-color: var(--amber); color: var(--amber); }
-    .tire.worn { border-color: var(--red); color: var(--red); }
+    .tire.soft { border-color: #ff4d4d; color: #ff7a7a; }
+    .tire.medium { border-color: var(--amber); color: var(--amber); }
+    .tire.hard { border-color: var(--dim); color: var(--txt); }
+    .tire.inter { border-color: #3fb950; color: #3fb950; }
+    .tire.wet { border-color: #4493f8; color: #4493f8; }
 
     .conn { display: flex; align-items: center; gap: 8px; font-size: 11px; letter-spacing: 2px; text-transform: uppercase; color: var(--dim); }
     #status { display: inline-flex; align-items: center; gap: 7px; padding: 6px 12px; border-radius: 999px; border: 1px solid var(--line); background: var(--panel); color: var(--dim); }

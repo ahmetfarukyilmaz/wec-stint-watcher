@@ -53,12 +53,12 @@ function lineupInner(drivers) {
   return drivers.map((d) => `<span class="d ${d.current ? "current" : ""}">${d.name}${catBadge(d.cat, false)}</span>`).join("");
 }
 
-/* ---------- lastik rozeti ---------- */
+/* ---------- lastik rozeti (compound; API'nin yaş verisi güvenilmez, stint zaten gösteriliyor) ---------- */
+const TIRE_CLS = { SOFT: "soft", MEDIUM: "medium", HARD: "hard", INTERMEDIATE: "inter", WET: "wet" };
 function tireHtml(tire) {
-  if (!tire) return "";
-  const a = tire.ageLaps ?? 0;
-  const cls = a <= 4 ? "fresh" : a <= 16 ? "mid" : a <= 27 ? "old" : "worn";
-  return `<span class="tire ${cls}">🛞 ${tire.compound ?? "—"} <b>${a}t</b></span>`;
+  if (!tire || !tire.compound) return "";
+  const cls = TIRE_CLS[String(tire.compound).toUpperCase()] || "medium";
+  return `<span class="tire ${cls}">🛞 ${tire.compound}</span>`;
 }
 
 /* ---------- flag theming ---------- */
