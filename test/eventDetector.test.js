@@ -1,7 +1,7 @@
 // test/eventDetector.test.js
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { detectEvents, raceLogEvents } from "../src/eventDetector.js";
+import { detectEvents, detectGlobalEvents, raceLogEvents } from "../src/eventDetector.js";
 import { makeCarState } from "../src/model.js";
 
 const cfg = { events: { position_change: true, pit: true, lap: true, driver_change: true, gap_threshold: true, flag: true }, gapThresholdSeconds: 10 };
@@ -49,9 +49,9 @@ test("gap eşiği yalnızca geçişte tetiklenir (histerezis)", () => {
   assert.equal(evs.find((x) => x.type === "gap_threshold"), undefined);
 });
 
-test("flag değişince flag üretir", () => {
-  const e = detectEvents(makeCarState({ participantId: 1, flag: "GF" }), makeCarState({ participantId: 1, flag: "FCY" }), cfg, NOW).find((x) => x.type === "flag");
-  assert.deepEqual(e.payload, { from: "GF", to: "FCY" });
+test("flag artık per-car detectEvents'te ÜRETİLMEZ (global)", () => {
+  const evs = detectEvents(makeCarState({ participantId: 1, flag: "GF" }), makeCarState({ participantId: 1, flag: "FCY" }), cfg, NOW);
+  assert.equal(evs.find((x) => x.type === "flag"), undefined);
 });
 
 test("değişiklik yoksa boş dizi döner", () => {
@@ -106,23 +106,25 @@ test("battle kapalıysa üretilmez", () => {
   assert.equal(evs.find((x) => x.type === "battle_behind"), undefined);
 });
 
-test("gökyüzü değişince weather_change üretir", () => {
-  const c = { events: { weather: true }, gapThresholdSeconds: 10 };
-  const prev = makeCarState({ participantId: 1, weather: { sky: "Cloudy", trackTemp: 33 } });
-  const next = makeCarState({ participantId: 1, weather: { sky: "Light Rain", trackTemp: 30 } });
-  const e = detectEvents(prev, next, c, NOW).find((x) => x.type === "weather_change");
-  assert.ok(e);
-  assert.equal(e.payload.from, "Cloudy");
-  assert.equal(e.payload.to, "Light Rain");
+test("detectGlobalEvents: bayrak ve gökyüzü değişimini tek olarak üretir (participantId 0)", () => {
+  const c = { events: { flag: true, weather: true } };
+  const evs = detectGlobalEvents(
+    { flag: "GF", sky: "Cloudy", trackTemp: 33 },
+    { flag: "FCY", sky: "Light Rain", trackTemp: 30 }, c, NOW);
+  const f = evs.find((x) => x.type === "flag");
+  const w = evs.find((x) => x.type === "weather_change");
+  assert.deepEqual(f.payload, { from: "GF", to: "FCY" });
+  assert.equal(f.participantId, 0);
+  assert.equal(w.payload.from, "Cloudy");
+  assert.equal(w.participantId, 0);
 });
 
-test("hava aynıysa weather_change üretmez", () => {
-  const c = { events: { weather: true }, gapThresholdSeconds: 10 };
-  const s = makeCarState({ participantId: 1, weather: { sky: "Cloudy" } });
-  assert.equal(detectEvents(s, makeCarState({ participantId: 1, weather: { sky: "Cloudy" } }), c, NOW).find((x) => x.type === "weather_change"), undefined);
+test("detectGlobalEvents: değişiklik yoksa boş", () => {
+  const c = { events: { flag: true, weather: true } };
+  assert.deepEqual(detectGlobalEvents({ flag: "GF", sky: "Clear" }, { flag: "GF", sky: "Clear" }, c, NOW), []);
 });
 
-test("raceLogEvents: RCMessage izlenen her araca, Retired/TimeLoss pid eşleşince", () => {
+test("raceLogEvents: RCMessage TEK olay (participantId 0), Retired/TimeLoss pid eşleşince", () => {
   const items = [
     { raceLogItemId: "a", type: "RCMessage", text: "SLOW CAR", lapNumber: 100, pid: -1 },
     { raceLogItemId: "b", type: "ParticipantRetired", pid: 9, carNumber: "9", lapNumber: 95 },
@@ -130,8 +132,10 @@ test("raceLogEvents: RCMessage izlenen her araca, Retired/TimeLoss pid eşleşin
     { raceLogItemId: "d", type: "PitIn", pid: 9 }, // bizde zaten var -> atlanır
   ];
   const evs = raceLogEvents(items, new Set(), [9, 8], 1000);
-  // RCMessage -> 2 araç (9,8); Retired -> 9 izleniyor; TimeLoss pid 7 izlenmiyor -> yok
-  assert.equal(evs.filter((e) => e.type === "rc_message").length, 2);
+  // RCMessage -> tek olay (kaç araç izlenirse izlensin); Retired -> 9 izleniyor; TimeLoss pid 7 izlenmiyor -> yok
+  const rc = evs.filter((e) => e.type === "rc_message");
+  assert.equal(rc.length, 1);
+  assert.equal(rc[0].participantId, 0);
   assert.equal(evs.filter((e) => e.type === "retired").length, 1);
   assert.equal(evs.filter((e) => e.type === "time_loss").length, 0);
   assert.equal(evs.find((e) => e.type === "retired").participantId, 9);

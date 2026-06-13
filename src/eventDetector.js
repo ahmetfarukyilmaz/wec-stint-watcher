@@ -42,9 +42,8 @@ export function detectEvents(prev, next, cfg, at) {
     }
   }
 
-  if (on("flag") && next.flag && prev.flag !== next.flag) {
-    events.push(makeEvent("flag", pid, { from: prev.flag, to: next.flag }, at));
-  }
+  // NOT: flag ve weather_change GLOBAL olaylardır (her araçta aynı); per-car değil,
+  // detectGlobalEvents ile tek sefer üretilir. Burada üretilmez (panel başına tekrar olmasın).
 
   if (on("lap_completed") && prev.lapNumber != null && next.lapNumber != null && next.lapNumber > prev.lapNumber && next.lastLapMs != null) {
     events.push(makeEvent("lap_completed", pid, {
@@ -53,10 +52,6 @@ export function detectEvents(prev, next, cfg, at) {
       deltaPrevMs: prev.lastLapMs != null ? next.lastLapMs - prev.lastLapMs : null,
       deltaBestMs: next.bestLapMs != null ? next.lastLapMs - next.bestLapMs : null,
     }, at));
-  }
-
-  if (on("weather") && next.weather?.sky && prev.weather?.sky && next.weather.sky !== prev.weather.sky) {
-    events.push(makeEvent("weather_change", pid, { from: prev.weather.sky, to: next.weather.sky, trackTemp: next.weather.trackTemp }, at));
   }
 
   if (on("battle")) {
@@ -70,6 +65,25 @@ export function detectEvents(prev, next, cfg, at) {
     }
   }
 
+  return events;
+}
+
+/**
+ * GLOBAL olaylar (tüm araçlarda ortak): bayrak ve hava değişimi. Tek sefer üretilir.
+ * @param {{flag:string|null, sky:string|null, trackTemp:number|null}} prev
+ * @param {{flag:string|null, sky:string|null, trackTemp:number|null}} next
+ * @param {{events:Record<string,boolean>}} cfg
+ * @param {number} at epoch ms
+ */
+export function detectGlobalEvents(prev, next, cfg, at) {
+  const events = [];
+  const on = (k) => cfg.events?.[k];
+  if (on("flag") && next.flag && prev.flag !== next.flag) {
+    events.push(makeEvent("flag", 0, { from: prev.flag, to: next.flag }, at));
+  }
+  if (on("weather") && next.sky && prev.sky && next.sky !== prev.sky) {
+    events.push(makeEvent("weather_change", 0, { from: prev.sky, to: next.sky, trackTemp: next.trackTemp }, at));
+  }
   return events;
 }
 
@@ -88,8 +102,8 @@ export function raceLogEvents(items, seenIds, trackedPids, at) {
   for (const it of items ?? []) {
     if (seenIds.has(it.raceLogItemId)) continue;
     if (it.type === "RCMessage") {
-      // global: izlenen her araca göster
-      for (const pid of tracked) events.push(makeEvent("rc_message", pid, { text: it.text ?? "", lap: it.lapNumber }, at));
+      // global: tek olay (participantId 0), her panele tekrar yazılmaz
+      events.push(makeEvent("rc_message", 0, { text: it.text ?? "", lap: it.lapNumber }, at));
     } else if (it.type === "ParticipantRetired" && tracked.has(Number(it.pid))) {
       events.push(makeEvent("retired", Number(it.pid), { lap: it.lapNumber, carNumber: it.carNumber }, at));
     } else if (it.type === "SignificantTimeLoss" && tracked.has(Number(it.pid))) {

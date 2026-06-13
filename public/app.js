@@ -3,6 +3,8 @@ const statusEl = document.getElementById("status");
 const flagTextEl = document.getElementById("flagText");
 const weatherEl = document.getElementById("weather");
 const boardEl = document.getElementById("board");
+const globalfeedEl = document.getElementById("globalfeed");
+const globalEventsEl = document.getElementById("globalEvents");
 const carInput = document.getElementById("carInput");
 const carList = document.getElementById("carList");
 
@@ -327,26 +329,29 @@ const META = {
 };
 const NOTIFY = new Set(["position_change", "pit_in", "pit_out", "best_lap", "fastest_lap", "battle_ahead", "battle_behind", "driver_change", "gap_threshold", "flag", "weather_change", "rc_message", "retired", "time_loss"]);
 
+const GLOBAL_TYPES = new Set(["flag", "weather_change", "rc_message"]);
 function addEvent(ev, silent = false) {
   if (ev.type === "connection") {
     statusEl.textContent = ev.payload.status === "connected" ? "canlı" : ev.payload.status;
     statusEl.className = ev.payload.status === "connected" ? "ok" : "bad";
     return;
   }
-  const p = panels[ev.participantId];
-  if (!p) return; // bu araç için panel yok (izlenmiyor)
+  const isGlobal = GLOBAL_TYPES.has(ev.type);
+  const feedEl = isGlobal ? globalEventsEl : panels[ev.participantId]?.feedEl;
+  if (!feedEl) return; // bu araç için panel yok (izlenmiyor)
   const meta = (META[ev.type] || (() => ({ ico: "•", accent: "var(--dim)", txt: ev.type })))(ev.payload ?? {});
-  const emptyLi = p.feedEl.querySelector(".empty");
+  const emptyLi = feedEl.querySelector(".empty");
   if (emptyLi) emptyLi.remove();
   const li = document.createElement("li");
   li.className = "ev" + (ev.type.startsWith("battle") || ev.type === "fastest_lap" ? " flash" : "");
   if (silent) li.style.animation = "none";
   li.style.setProperty("--accent", meta.accent);
   li.innerHTML = `<div class="ico">${meta.ico}</div><div class="body"><div class="txt">${meta.txt}</div></div><div class="time">${fmtTime(ev.at)}</div>`;
-  p.feedEl.prepend(li);
-  while (p.feedEl.children.length > 120) p.feedEl.lastChild.remove();
+  feedEl.prepend(li);
+  while (feedEl.children.length > 120) feedEl.lastChild.remove();
   if (!silent && NOTIFY.has(ev.type) && "Notification" in window && Notification.permission === "granted") {
-    new Notification(`#${carNumbers[ev.participantId] ?? ev.participantId} · WEC`, { body: meta.txt.replace(/<[^>]+>/g, "") });
+    const title = isGlobal ? "WEC · Yarış Kontrol" : `#${carNumbers[ev.participantId] ?? ev.participantId} · WEC`;
+    new Notification(title, { body: meta.txt.replace(/<[^>]+>/g, "") });
   }
 }
 
@@ -385,6 +390,7 @@ function switchView(v) {
   currentView = v;
   document.querySelectorAll(".tabs button").forEach((b) => b.classList.toggle("active", b.dataset.view === v));
   boardEl.hidden = v !== "board";
+  globalfeedEl.hidden = v !== "board";
   standingsEl.hidden = v !== "standings";
   if (v === "standings") renderStandings();
 }

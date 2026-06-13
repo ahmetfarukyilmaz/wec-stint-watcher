@@ -135,7 +135,14 @@
     .addcar .add { font-family: inherit; font-size: 16px; font-weight: 700; line-height: 1; color: var(--on-flag); background: var(--flag); border: 0; width: 38px; height: 36px; border-radius: 8px; cursor: pointer; }
     .addcar .add:hover { transform: translateY(-1px); }
 
-    #board[hidden], #standings[hidden] { display: none !important; }
+    #board[hidden], #standings[hidden], #globalfeed[hidden] { display: none !important; }
+
+    /* ---------- genel / yarış kontrol feed'i ---------- */
+    #globalfeed { max-width: 1500px; margin: 0 auto; padding: 16px 26px 0; }
+    #globalfeed .gf-title { font-size: 11px; letter-spacing: 3px; text-transform: uppercase; color: var(--dim); margin-bottom: 10px; }
+    .feed.gf { flex-direction: row; flex-wrap: wrap; max-height: none; gap: 8px; }
+    .feed.gf .ev { flex: 1 1 320px; min-width: 280px; }
+    .feed.gf .empty { padding: 6px 0; }
 
     /* ---------- sekmeler ---------- */
     .tabs { display: flex; gap: 8px; padding: 16px 26px 0; max-width: 1500px; margin: 0 auto; }
@@ -336,6 +343,11 @@
     <button data-view="board" class="active">Paneller</button>
     <button data-view="standings">Sıralama</button>
   </nav>
+
+  <section id="globalfeed">
+    <div class="gf-title">⚑ Yarış Kontrol · Genel</div>
+    <ul id="globalEvents" class="feed gf"><li class="empty">Genel olay yok</li></ul>
+  </section>
 
   <main id="board"><div class="board-empty">Araç bekleniyor… Sağ üstten araç no ekle ya da Sıralama'dan + ile seç.</div></main>
   <section id="standings" hidden></section>

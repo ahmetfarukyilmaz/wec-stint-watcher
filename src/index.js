@@ -4,7 +4,7 @@ import { createStore } from "./store.js";
 import { createTrackedStore } from "./trackedStore.js";
 import { createApiClient } from "./apiClient.js";
 import { createPollClient } from "./pollClient.js";
-import { detectEvents, raceLogEvents } from "./eventDetector.js";
+import { detectEvents, detectGlobalEvents, raceLogEvents } from "./eventDetector.js";
 import { makeCarState } from "./model.js";
 import { buildStintSummary } from "./summary.js";
 import { createScheduler } from "./scheduler.js";
@@ -22,6 +22,9 @@ const baselined = new Set(stateMap.keys());
 // Race log dedup: görülen item id'leri. İlk poll'da geçmiş item'lar olay üretmeden tohumlanır.
 const seenRaceLog = new Set();
 let raceLogSeeded = false;
+// Global durum (bayrak/hava) — tek sefer olay üretmek için
+let globalPrev = { flag: null, sky: null, trackTemp: null };
+let globalSeeded = false;
 
 const api = createApiClient(cfg);
 const poll = createPollClient(cfg, api, () => trackedStore.list());
@@ -63,6 +66,17 @@ poll.onSnapshot((snapshot) => {
     const events = detectEvents(prev, next, cfg, Date.now());
     stateMap.set(pid, next);
     for (const ev of events) { store.appendEvent(ev); web.broadcast(ev); }
+  }
+
+  // Global olaylar (bayrak/hava): herhangi bir aracın durumundan tek sefer üret
+  const anyCar = snapshot.values().next().value;
+  if (anyCar) {
+    const nextGlobal = { flag: anyCar.flag ?? null, sky: anyCar.weather?.sky ?? null, trackTemp: anyCar.weather?.trackTemp ?? null };
+    if (!globalSeeded) { globalPrev = nextGlobal; globalSeeded = true; }
+    else {
+      for (const ev of detectGlobalEvents(globalPrev, nextGlobal, cfg, Date.now())) { store.appendEvent(ev); web.broadcast(ev); }
+      globalPrev = nextGlobal;
+    }
   }
 
   // Resmi race log: yeni item'lardan olay üret (RCMessage/Retired/TimeLoss)
