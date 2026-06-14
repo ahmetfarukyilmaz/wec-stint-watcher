@@ -94,6 +94,7 @@ export function adaptSnapshot(snap, trackedPids) {
     let driver = null, driverCat = null, drivers = [];
     if (part?.drivers) {
       drivers = part.drivers.map((dr) => ({
+        id: dr.externalDriverID != null ? String(dr.externalDriverID) : null,
         name: dr.threeLettersName || dr.displayName || "?",
         cat: dr.categoryId ?? null,
         current: part.currentDriverId != null && String(dr.externalDriverID) === String(part.currentDriverId),

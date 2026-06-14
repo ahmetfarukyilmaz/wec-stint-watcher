@@ -50,5 +50,10 @@ export function createApiClient(cfg, fetchImpl = fetch) {
       arrKeys.forEach((k, i) => { snap[k] = arrResults[i]; });
       return snap;
     },
+    // Tüm yarış log'u (sayfasız) — sürücü süre hesabı için (büyük; seyrek çağrılır)
+    async fetchRaceLogFull() {
+      const data = await getJson(url("/live/racelog-items/"), { items: [] });
+      return Array.isArray(data) ? data : (data.items ?? []);
+    },
   };
 }

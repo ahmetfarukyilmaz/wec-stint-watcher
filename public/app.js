@@ -48,9 +48,13 @@ function applyClock(rc) {
 /* ---------- FIA sürücü kategorisi ---------- */
 const CAT = { P: { label: "PLATINUM", cls: "p" }, G: { label: "GOLD", cls: "g" }, S: { label: "SILVER", cls: "s" }, B: { label: "BRONZE", cls: "b" } };
 function catBadge(cat, full) { const c = CAT[cat]; return c ? `<span class="cat ${c.cls}">${full ? c.label : cat}</span>` : ""; }
+function fmtHM(sec) { if (sec == null) return ""; const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60); return h ? `${h}:${String(m).padStart(2, "0")}` : `${m}dk`; }
 function lineupInner(drivers) {
   if (!drivers || !drivers.length) return "";
-  return drivers.map((d) => `<span class="d ${d.current ? "current" : ""}">${d.name}${catBadge(d.cat, false)}</span>`).join("");
+  return drivers.map((d) => {
+    const t = d.seconds != null ? ` <span class="dt">${fmtHM(d.seconds)}</span>` : "";
+    return `<span class="d ${d.current ? "current" : ""}">${d.name}${catBadge(d.cat, false)}${t}</span>`;
+  }).join("");
 }
 
 /* ---------- lastik rozeti (compound; API'nin yaş verisi güvenilmez, stint zaten gösteriliyor) ---------- */

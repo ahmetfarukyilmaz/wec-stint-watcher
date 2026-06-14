@@ -14,6 +14,7 @@ export function createPollClient(cfg, apiClient, resolveTracked) {
   let cars = []; // tüm araçların hafif listesi (seçici için)
   let tracked = []; // son efektif takip listesi
   let raceLog = []; // son race log item'ları
+  let clock = {}; // son yarış saati
 
   function buildCars(snap) {
     const drivers = new Map();
@@ -35,6 +36,7 @@ export function createPollClient(cfg, apiClient, resolveTracked) {
     const snap = await apiClient.fetchAll();
     cars = buildCars(snap);
     raceLog = snap.raceLog?.items ?? [];
+    clock = snap.clock ?? {};
     tracked = resolve(cars); // pinli ∪ otomatik ilk-N
     const map = adaptSnapshot(snap, tracked);
     emit(map);
@@ -48,6 +50,7 @@ export function createPollClient(cfg, apiClient, resolveTracked) {
     getCars() { return cars; },
     getTracked() { return tracked; },
     getRaceLog() { return raceLog; },
+    getClock() { return clock; },
     pollOnce,
     start() { scheduler.start(); return pollOnce(); }, // ilk poll'u hemen yap
     stop() { scheduler.stop(); },

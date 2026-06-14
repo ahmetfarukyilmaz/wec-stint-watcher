@@ -5,6 +5,7 @@ import { createTrackingStore } from "./trackingStore.js";
 import { createApiClient } from "./apiClient.js";
 import { createPollClient } from "./pollClient.js";
 import { detectEvents, detectGlobalEvents, raceLogEvents } from "./eventDetector.js";
+import { computeDriverStints } from "./driverStints.js";
 import { makeCarState } from "./model.js";
 import { buildStintSummary } from "./summary.js";
 import { createScheduler } from "./scheduler.js";
@@ -26,11 +27,32 @@ const api = createApiClient(cfg);
 // Efektif takip = pinli ∪ otomatik sınıf ilk-N (her poll'da güncel araçlardan hesaplanır)
 const poll = createPollClient(cfg, api, (cars) => tracking.effective(cars));
 
-// Durumu pinli bilgisiyle dışa ver (frontend pin tuşu için)
+// Sürücü süreleri: pid -> { externalDriverID: saniye } (periyodik hesaplanır, aşağıda)
+const driverTimes = {};
+
+// Durumu pinli + sürücü süreleriyle dışa ver
 function stateOut() {
   const out = {};
-  for (const [pid, c] of stateMap) out[pid] = { ...c, pinned: tracking.isPinned(pid) };
+  for (const [pid, c] of stateMap) {
+    const dt = driverTimes[pid] || {};
+    const drivers = (c.drivers || []).map((d) => ({ ...d, seconds: d.id != null ? (dt[d.id] ?? null) : null }));
+    out[pid] = { ...c, drivers, pinned: tracking.isPinned(pid) };
+  }
   return out;
+}
+
+// Tam yarış log'undan sürücü sürelerini hesapla (seyrek; ~2 dk)
+async function refreshDriverTimes() {
+  const clock = poll.getClock();
+  if (!clock?.startTime) return;
+  const startMs = Date.parse(clock.startTime);
+  const nowMs = clock.tsNow ? Date.parse(clock.tsNow) : Date.now();
+  let items;
+  try { items = await api.fetchRaceLogFull(); } catch { return; }
+  for (const pid of poll.getTracked()) {
+    const swaps = items.filter((x) => Number(x.pid) === pid && x.type === "DriverSwap");
+    driverTimes[pid] = computeDriverStints(swaps, startMs, nowMs).byDriver;
+  }
 }
 
 function addCar(carNumber) {
@@ -110,10 +132,15 @@ const summaryScheduler = createScheduler(cfg.stintSummaryIntervalMinutes * 60 * 
   }
 });
 
+// Sürücü süreleri: ~2 dk'da bir tam log'dan hesapla (driver swap'ler seyrek)
+const driverTimesScheduler = createScheduler(120000, refreshDriverTimes);
+
 const { port } = await web.listen();
 console.log(`[web] http://127.0.0.1:${port}`);
 await poll.start();
 summaryScheduler.start();
+driverTimesScheduler.start();
+refreshDriverTimes(); // başlangıçta bir kez
 console.log(`[poll] SID-${cfg.sessionId} izleniyor (her ${cfg.pollIntervalSeconds}sn); pinli: ${tracking.pinnedList().join(", ") || "—"}`);
 
-process.on("SIGINT", async () => { poll.stop(); summaryScheduler.stop(); await web.close(); process.exit(0); });
+process.on("SIGINT", async () => { poll.stop(); summaryScheduler.stop(); driverTimesScheduler.stop(); await web.close(); process.exit(0); });
