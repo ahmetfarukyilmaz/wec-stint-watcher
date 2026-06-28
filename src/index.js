@@ -143,6 +143,7 @@ await poll.start();
 summaryScheduler.start();
 driverTimesScheduler.start();
 refreshDriverTimes(); // başlangıçta bir kez
-console.log(`[poll] SID-${cfg.sessionId} izleniyor (her ${cfg.pollIntervalSeconds}sn); pinli: ${tracking.pinnedList().join(", ") || "—"}`);
+const sourceLabel = cfg.provider === "swiss" ? `Swiss-${cfg.tournament ?? "SRO"}` : `SID-${cfg.sessionId}`;
+console.log(`[poll] ${sourceLabel} izleniyor (her ${cfg.pollIntervalSeconds}sn); pinli: ${tracking.pinnedList().join(", ") || "—"}`);
 
 process.on("SIGINT", async () => { poll.stop(); summaryScheduler.stop(); driverTimesScheduler.stop(); await web.close(); process.exit(0); });
