@@ -8,7 +8,8 @@ export function createSwissDriverTimes() {
     if (driverId == null) return; // bilinmeyen sürücü: referans alma
     let st = byPid.get(pid);
     if (!st) { st = { totals: new Map(), curId: driverId, lastMs: nowMs }; byPid.set(pid, st); return; }
-    if (driverId === st.curId) {
+    // lastMs == null: load sonrası ilk gözlem — restart/downtime süresini sayma, sadece referans al
+    if (st.lastMs != null && driverId === st.curId) {
       const dt = (nowMs - st.lastMs) / 1000;
       if (dt > 0) st.totals.set(driverId, (st.totals.get(driverId) ?? 0) + dt);
     }
@@ -29,5 +30,23 @@ export function createSwissDriverTimes() {
     return out;
   }
 
-  return { update, get, all };
+  // Kalıcılık: restart'ta totals + aktif sürücü korunur (lastMs hariç — downtime sayılmaz).
+  function dump() {
+    const out = {};
+    for (const [pid, st] of byPid) out[pid] = { totals: Object.fromEntries(st.totals), curId: st.curId };
+    return out;
+  }
+
+  function load(data) {
+    if (!data || typeof data !== "object") return;
+    for (const [pid, st] of Object.entries(data)) {
+      byPid.set(Number(pid), {
+        totals: new Map(Object.entries(st?.totals ?? {})),
+        curId: st?.curId ?? null,
+        lastMs: null, // ilk update'te yeniden referans alınır (downtime sayılmaz)
+      });
+    }
+  }
+
+  return { update, get, all, dump, load };
 }

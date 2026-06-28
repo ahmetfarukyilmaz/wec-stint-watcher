@@ -24,3 +24,11 @@ test("state yazılır ve restart sonrası okunur", () => {
 test("boş dizinde loadState boş obje döner", () => {
   assert.deepEqual(createStore(DIR).loadState(), {});
 });
+
+test("driverTimes yazılır ve restart sonrası okunur; yoksa boş obje", () => {
+  assert.deepEqual(createStore(DIR).loadDriverTimes(), {});
+  const s1 = createStore(DIR);
+  s1.saveDriverTimes({ 91: { totals: { A: 120 }, curId: "A" } });
+  const s2 = createStore(DIR);
+  assert.equal(s2.loadDriverTimes()[91].totals.A, 120);
+});

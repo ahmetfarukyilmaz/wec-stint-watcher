@@ -35,3 +35,27 @@ test("null driverId güvenli (atla)", () => {
   t.update(1, null, 5000);
   assert.deepEqual(t.get(1), {});
 });
+
+test("dump/load: restart'ta totals korunur, downtime sayılmaz", () => {
+  const t1 = createSwissDriverTimes();
+  t1.update(91, "A", 0);
+  t1.update(91, "A", 10000);          // +10s A
+  const snap = t1.dump();
+  assert.equal(Math.round(snap[91].totals["A"]), 10);
+  assert.equal(snap[91].curId, "A");
+
+  // restart simülasyonu: yeni tracker, load et, çok sonra güncelle
+  const t2 = createSwissDriverTimes();
+  t2.load(snap);
+  t2.update(91, "A", 999999);          // downtime (10000→999999) SAYILMAMALI (load sonrası referans)
+  assert.equal(Math.round(t2.get(91)["A"]), 10);
+  t2.update(91, "A", 1002999);         // +3s A
+  assert.equal(Math.round(t2.get(91)["A"]), 13);
+});
+
+test("load: bozuk/boş veri güvenli", () => {
+  const t = createSwissDriverTimes();
+  t.load(null);
+  t.load(undefined);
+  assert.deepEqual(t.all(), {});
+});

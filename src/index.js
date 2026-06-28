@@ -27,6 +27,7 @@ let globalSeeded = false;
 
 const provider = cfg.provider === "swiss" ? createSwissProvider(cfg) : createGriiipProvider(cfg);
 const swissDriverTimes = cfg.provider === "swiss" ? createSwissDriverTimes() : null;
+if (swissDriverTimes) swissDriverTimes.load(store.loadDriverTimes()); // restart'ta sürücü sürelerini koru
 // Efektif takip = pinli ∪ otomatik sınıf ilk-N (her poll'da güncel araçlardan hesaplanır)
 const poll = createPollClient(cfg, provider, (cars) => tracking.effective(cars));
 
@@ -103,6 +104,7 @@ poll.onSnapshot((snapshot) => {
       if (curDrv?.id) swissDriverTimes.update(pid, curDrv.id, now);
     }
     Object.assign(driverTimes, swissDriverTimes.all());
+    store.saveDriverTimes(swissDriverTimes.dump()); // restart için kalıcılaştır
   }
 
   // Artık efektif listede olmayan araçları durumdan düşür (otomatik rotasyon)

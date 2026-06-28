@@ -31,3 +31,25 @@ test("swissProvider.raceLog: Messages'ı RCMessage olaylarına map'ler", () => {
   const ids = new Set(items.map((x) => x.raceLogItemId));
   assert.equal(ids.size, items.length);
 });
+
+test("swissProvider.raceLog: PENALTY/RETIRED mesajlarını sınıflandırır", () => {
+  const detailSynthetic = {
+    Messages: [
+      { Time: "28.06.2026 14:00:00", Type: 1, Text: "CAR 5 - STOP&GO 4SEC PENALTY SHORT TECHNICAL PITSTOP" },
+      { Time: "28.06.2026 14:01:00", Type: 1, Text: "CAR 46 RETIRED" },
+      { Time: "28.06.2026 14:02:00", Type: 1, Text: "CAR 91 BLUE FLAG" },
+      { Time: "28.06.2026 14:03:00", Type: 2, Text: "TRACK CLEAR" },
+    ],
+  };
+  const p = createSwissProvider({}, () => Promise.resolve({}));
+  const items = p.raceLog({ detail: detailSynthetic });
+  assert.equal(items[0].type, "SignificantTimeLoss");
+  assert.equal(items[0].pid, 5);
+  assert.equal(items[1].type, "ParticipantRetired");
+  assert.equal(items[1].pid, 46);
+  assert.equal(items[1].carNumber, "46");
+  assert.equal(items[2].type, "RCMessage");
+  assert.equal(items[3].type, "RCMessage"); // araç no yok → genel
+  // dedup id'ler Type'ı da içerir
+  assert.ok(items.every((it) => typeof it.raceLogItemId === "string"));
+});

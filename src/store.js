@@ -6,6 +6,7 @@ export function createStore(dir) {
   mkdirSync(dir, { recursive: true });
   const eventsPath = join(dir, "events.jsonl");
   const statePath = join(dir, "state.json");
+  const driverTimesPath = join(dir, "driverTimes.json");
 
   return {
     appendEvent(event) { appendFileSync(eventsPath, JSON.stringify(event) + "\n"); },
@@ -17,6 +18,11 @@ export function createStore(dir) {
     loadState() {
       if (!existsSync(statePath)) return {};
       return JSON.parse(readFileSync(statePath, "utf8"));
+    },
+    saveDriverTimes(obj) { writeFileSync(driverTimesPath, JSON.stringify(obj)); },
+    loadDriverTimes() {
+      if (!existsSync(driverTimesPath)) return {};
+      try { return JSON.parse(readFileSync(driverTimesPath, "utf8")); } catch { return {}; }
     },
   };
 }
