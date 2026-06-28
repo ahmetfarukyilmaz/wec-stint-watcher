@@ -59,14 +59,14 @@ Her araç için (kişiye özgü `CompetitorId` anahtar):
 
 | Alan | Tip | Açıklama |
 |------|-----|----------|
-| `BestTime` | object | En iyi tur: `{Time (ms), TimeState, Intermediates[], LapNumber}` |
-| `LastLap` | object | Son tur: `{Time (ms), TimeState, Intermediates[], LapNumber}` |
-| `Intermediates[]` | array | Sektör verisi: `{Time, Speed, TimeState, SpeedState}` |
+| `BestTime` | object | En iyi tur: `{Time (m:ss.mmm string, parse→ms), TimeState, Intermediates[], LapNumber}` |
+| `LastLap` | object | Son tur: `{Time (m:ss.mmm string, parse→ms), TimeState, Intermediates[], LapNumber}` |
+| `Intermediates[]` | array | Sektör verisi: `{Time (ss.mmm string, parse→ms), Speed, TimeState, SpeedState}` |
 | `Rank` | int | Genel konum (sıra) |
 | `ClassRank` | int | Sınıf içi konum |
 | `RankingTime` | string | Sıralamada kullanılan zaman (best tur veya diğer kriter) |
 | `RankingLap` | int | Sıralamada kullanılan tur numarası |
-| `TotalTime` | string | Toplam geçen zaman (hh:mm:ss.mmm) |
+| `TotalTime` | string | Toplam geçen zaman (h:mm:ss.mmm string, parseClockMs ile parse) |
 | `TotalLapCount` | int | Tamamlanan tur sayısı |
 | `Status` | int | Araç durumu kodu: `2`=koşuyor, `4`=durmuş/garaj/çekilme |
 | `SectBasedPcntPos` | float | Pistteki konum yüzdesi (0..1) |
@@ -165,8 +165,8 @@ Sektör / ara tanımları (sektör adları, noktalar, vs.).
 | `classId` | `Competitors.ClassId` → `Classes[ClassId]` |
 | `carNumber` | `Competitors.Bib` |
 | `lapNumber` | `MainResult.TotalLapCount` |
-| `lastLapMs` | `MainResult.LastLap.Time` (ms cinsinden) |
-| `bestLapMs` | `MainResult.BestTime.Time` (ms cinsinden) |
+| `lastLapMs` | `MainResult.LastLap.Time` (m:ss.mmm string, parseLapMs ile parse) |
+| `bestLapMs` | `MainResult.BestTime.Time` (m:ss.mmm string, parseLapMs ile parse) |
 | `bestLapIsPurple` | `MainResult.BestTime.TimeState` (mor = genel en hızlı) |
 | `sectors` | `MainResult.LastLap.Intermediates[]` (Time + Speed + TimeState rengi) |
 | `topSpeedKph` | `Intermediates[].Speed` maksimumu |
@@ -183,7 +183,7 @@ Sektör / ara tanımları (sektör adları, noktalar, vs.).
 | `currentDriver` | `Competitors.CurrentDriverId` → `Drivers[CurrentDriverId]` |
 | `currentDriverCat` | `Drivers[CurrentDriverId].LicenseTypeName` |
 | `flag` | `UntInfo.TrackFlag` (pist), `UntInfo.ChequeredFlag` (yarış sonu) |
-| `raceClock.remainingMs` | Parsed `UntInfo.RemainingTime` (örn. "3:54:20" → 14060000ms) |
+| `raceClock.remainingMs` | `UntInfo.RemainingTime` (h:mm:ss string, parseClockMs ile parse) |
 | `trackPositionPct` | `MainResult.SectBasedPcntPos` (0..1, pistteki konum) |
 
 > Fixtures: `fixtures/swiss_*.json` — canlı Spa 24h yarışından (2026-06-28) çekilmiş veri örnekleri.
