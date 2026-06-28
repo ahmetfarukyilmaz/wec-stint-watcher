@@ -12,5 +12,6 @@
   "battleThresholdSeconds": 2,
   "stintSummaryIntervalMinutes": 60,
   "webPort": 3000,
-  "dataDir": "data-spa"
+  "dataDir": "data-spa",
+  "driverRules": { "maxTotalMin": 660, "minTotalMin": 120, "warnAtPct": 0.9, "classOverrides": { "Bronze": { "Platinum": 480, "Silver": 360 } } }
 }
