@@ -32,7 +32,7 @@ export function createStintTracker() {
       avgPaceMs = clean.length ? Math.round(clean.reduce((a, b) => a + b, 0) / clean.length) : null;
     }
     const degradationMsPerLap = st.laps.length >= 4 ? olsSlope(st.laps.map((l, i) => [i, l.ms])) : null;
-    const avgStintLaps = st.pitCount > 0 ? st.lap / st.pitCount : null;
+    const avgStintLaps = st.pitCount > 0 ? st.lap / (st.pitCount + 1) : null;
     const predictedPitLap = avgStintLaps != null ? Math.round(st.stintStartLap + avgStintLaps) : null;
     const lapsToPit = predictedPitLap != null ? predictedPitLap - st.lap : null;
     return {

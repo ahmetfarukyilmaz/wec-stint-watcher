@@ -36,7 +36,7 @@ test("pit sayısından ortalama stint + pit tahmini", () => {
   // 30 tur, 2 pit → avgStintLaps=15
   t.update(1, { lap: 30, lastLapMs: 120000, inPit: false, pitCount: 2, nowMs: 1 });
   const g = t.get(1);
-  assert.equal(g.avgStintLaps, 15);
+  assert.equal(g.avgStintLaps, 10);
   assert.equal(typeof g.predictedPitLap, "number");
   assert.equal(typeof g.lapsToPit, "number");
 });

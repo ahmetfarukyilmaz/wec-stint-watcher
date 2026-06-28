@@ -10,10 +10,11 @@ export function assessDriverRules(drivers, classShortName, cfg) {
   const overrides = (c.classOverrides ?? {})[classShortName] ?? {};
   return (drivers ?? []).map((d) => {
     const maxSec = overrides[d.cat] != null ? overrides[d.cat] * 60 : maxDefault;
+    const hasSec = d.seconds != null;
     const seconds = d.seconds ?? 0;
     let status = "ok";
     if (seconds > maxSec) status = "over";
     else if (seconds >= maxSec * warnAt) status = "warn";
-    return { ...d, maxSec, minSec, status, pctOfMax: maxSec ? seconds / maxSec : null };
+    return { ...d, maxSec, minSec, status, pctOfMax: hasSec && maxSec ? seconds / maxSec : null };
   });
 }
