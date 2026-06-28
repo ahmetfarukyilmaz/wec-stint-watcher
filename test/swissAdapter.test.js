@@ -47,6 +47,24 @@ test("swissAdaptSnapshot: takip edilmeyen pid map'te yok", () => {
   assert.equal(map.size, 0);
 });
 
+test("swissAdaptSnapshot: sınıf komşusu gap (ahead/behind) hesaplar", () => {
+  const cars = swissBuildCars(snap).filter((c) => c.overall != null).sort((a,b)=>a.overall-b.overall);
+  // sınıfında 2. olan bir araç bul (hem ahead hem behind olası)
+  const map = swissAdaptSnapshot(snap, cars.map((c) => c.pid));
+  const mid = [...map.values()].find((c) => c.classPosition === 2);
+  assert.ok(mid, "sınıfında 2. araç olmalı");
+  assert.ok(mid.gapAheadMs != null && mid.gapAheadMs >= 0, "ahead gap dolu ve >=0");
+  assert.ok(mid.aheadCarNumber != null, "ahead araç no dolu");
+});
+
+test("swissAdaptSnapshot: trackPositionPct 0..1 normalize", () => {
+  const cars = swissBuildCars(snap).filter((c) => c.overall != null);
+  const map = swissAdaptSnapshot(snap, cars.map((c) => c.pid));
+  for (const c of map.values()) {
+    if (c.trackPositionPct != null) assert.ok(c.trackPositionPct >= 0 && c.trackPositionPct <= 1, `pct 0..1: ${c.trackPositionPct}`);
+  }
+});
+
 test("swissAdaptSnapshot: null MainResult ile çökmez (DNS/unclassified)", () => {
   // Synthetic snap: bir araçta MainResult: null
   const { timing, detail } = snap;
