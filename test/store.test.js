@@ -32,3 +32,11 @@ test("driverTimes yazılır ve restart sonrası okunur; yoksa boş obje", () => 
   const s2 = createStore(DIR);
   assert.equal(s2.loadDriverTimes()[91].totals.A, 120);
 });
+
+test("stintState yazılır/okunur; yoksa boş obje", () => {
+  assert.deepEqual(createStore(DIR).loadStintState(), {});
+  const s1 = createStore(DIR);
+  s1.saveStintState({ 1: { stintStartLap: 5, laps: [], lastLap: 7, lap: 7, pitCount: 0 } });
+  const s2 = createStore(DIR);
+  assert.equal(s2.loadStintState()[1].stintStartLap, 5);
+});
