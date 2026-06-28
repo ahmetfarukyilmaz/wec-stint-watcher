@@ -19,3 +19,19 @@ test("makeEvent zaman damgası ve tip içerir", () => {
   assert.equal(e.at, 1000);
   assert.deepEqual(e.payload, { lap: 12 });
 });
+
+test("makeCarState: yeni opsiyonel alanlar default null", () => {
+  const cs = makeCarState({});
+  assert.equal(cs.trackPositionPct, null);
+  assert.equal(cs.manufacturer, null);
+  assert.equal(cs.carType, null);
+  assert.equal(cs.gapToFirstLaps, null);
+});
+
+test("makeCarState: yeni alanlar set edilebilir", () => {
+  const cs = makeCarState({ trackPositionPct: 0.8, manufacturer: "Porsche", carType: "911 GT3 R", gapToFirstLaps: 2 });
+  assert.equal(cs.trackPositionPct, 0.8);
+  assert.equal(cs.manufacturer, "Porsche");
+  assert.equal(cs.carType, "911 GT3 R");
+  assert.equal(cs.gapToFirstLaps, 2);
+});

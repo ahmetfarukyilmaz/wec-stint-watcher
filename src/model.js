@@ -30,6 +30,10 @@
  * @property {{elapsedMs:number,totalMs:number,remainingMs:number}|null} raceClock
  * @property {{lap:number,at:number,durationMs:number}|null} lastPit  son pit-out (tur, epoch ms, duruş)
  * @property {number|null} stintLaps  son pit'ten beri geçen tur
+ * @property {number|null} trackPositionPct  Swiss opsiyonel: pist üzerindeki pozisyon yüzdesi
+ * @property {string|null} manufacturer  Swiss opsiyonel: araç üreticisi
+ * @property {string|null} carType  Swiss opsiyonel: araç türü
+ * @property {number|null} gapToFirstLaps  Swiss opsiyonel: 1. araçtan tur farkı
  */
 
 /** @param {Partial<CarState>} partial @returns {CarState} */
@@ -64,6 +68,10 @@ export function makeCarState(partial = {}) {
     raceClock: partial.raceClock ?? null,
     lastPit: partial.lastPit ?? null,
     stintLaps: partial.stintLaps ?? null,
+    trackPositionPct: partial.trackPositionPct ?? null,
+    manufacturer: partial.manufacturer ?? null,
+    carType: partial.carType ?? null,
+    gapToFirstLaps: partial.gapToFirstLaps ?? null,
   };
 }
 
