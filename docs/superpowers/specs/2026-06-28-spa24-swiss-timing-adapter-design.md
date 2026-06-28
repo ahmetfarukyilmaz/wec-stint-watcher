@@ -124,13 +124,20 @@ Mevcut alanlar korunur; Griiip adapter'ı yeni alanları doldurmaz (null), sorun
   `driverTimesScheduler` paterni gibi.
 - Keşif zinciri (Presentation*Id) ~5 dk'da bir tazelenir (oturum değişebilir).
 
-## Açık uçlar (implementasyonda canlı veriyle doğrulanacak)
+## Açık uçlar — canlı veriyle ÇÖZÜLDÜ (2026-06-28, yarış canlıyken)
 
-1. **`Status` kod → pit/retired eşlemesi** — değerleri canlı gözlemleyip haritalanacak.
-2. **Aktif sürücü kaynağı** — TIMING'de yok; `Messages` array'i veya COMP_DETAIL'de bir
-   `CurrentDriverId` aranacak. Yoksa sürücü-değişim olayı `Messages`'tan çıkarılır.
-3. **Hava (weather)** — ayrı bir dosya olabilir; opsiyonel, ilk sürümde atlanabilir.
-4. **Gap hesabı** — tur-aşağı (lap down) durumunda "+N Lap" gösterimi; `TotalLapCount` farkı kullanılır.
+COMP_DETAIL.Competitors[id] beklenenden fazla **canlı** alan içeriyor:
+1. **Pit** ✅ — `InPitLane` (bool, güvenilir) → `inPit`; `PitStopCount` → `pitCount`.
+   (Not: TIMING `Status` pit ile temiz örtüşmüyor; pit için `InPitLane` kullan.)
+2. **Aktif sürücü** ✅ — `CurrentDriverId` → `Drivers[CurrentDriverId]`. Yani COMP_DETAIL de
+   her poll çekilmeli (InPitLane/CurrentDriverId/PitStopCount canlı değişir).
+3. **Hava** — ayrı dosya bulunamadı (WEATHER/CONDITIONS 404). **v1'de `weather: null`** (atla).
+4. **Gap** — `TotalTime` farkı; tur-aşağı durumda `TotalLapCount` farkıyla "+N Lap".
+
+`Status` kodları gözlem: `2`=koşuyor, `4`=durmuş/garaj/çekilme karışımı (retired tespiti v2,
+şimdilik `Messages` veya Status>2 → "running değil"). Fixture'lar: `fixtures/swiss_*.json`.
+
+**Poll revizyonu:** COMP_DETAIL canlı olduğundan TIMING ile birlikte **her poll** çekilir.
 
 ## Test stratejisi
 
