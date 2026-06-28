@@ -2,7 +2,8 @@
 import { loadConfig } from "./config.js";
 import { createStore } from "./store.js";
 import { createTrackingStore } from "./trackingStore.js";
-import { createApiClient } from "./apiClient.js";
+import { createGriiipProvider } from "./providers/griiip.js";
+import { createSwissProvider } from "./providers/swiss.js";
 import { createPollClient } from "./pollClient.js";
 import { detectEvents, detectGlobalEvents, raceLogEvents } from "./eventDetector.js";
 import { computeDriverStints } from "./driverStints.js";
@@ -23,9 +24,9 @@ let raceLogSeeded = false;
 let globalPrev = { flag: null, sky: null, trackTemp: null };
 let globalSeeded = false;
 
-const api = createApiClient(cfg);
+const provider = cfg.provider === "swiss" ? createSwissProvider(cfg) : createGriiipProvider(cfg);
 // Efektif takip = pinli ∪ otomatik sınıf ilk-N (her poll'da güncel araçlardan hesaplanır)
-const poll = createPollClient(cfg, api, (cars) => tracking.effective(cars));
+const poll = createPollClient(cfg, provider, (cars) => tracking.effective(cars));
 
 // Sürücü süreleri: pid -> { externalDriverID: saniye } (periyodik hesaplanır, aşağıda)
 const driverTimes = {};
@@ -43,12 +44,13 @@ function stateOut() {
 
 // Tam yarış log'undan sürücü sürelerini hesapla (seyrek; ~2 dk)
 async function refreshDriverTimes() {
+  if (cfg.provider === "swiss") return; // v1: Swiss'te per-sürücü süre yok (CurrentDriverId anlık gösterilir)
   const clock = poll.getClock();
   if (!clock?.startTime) return;
   const startMs = Date.parse(clock.startTime);
   const nowMs = clock.tsNow ? Date.parse(clock.tsNow) : Date.now();
   let items;
-  try { items = await api.fetchRaceLogFull(); } catch { return; }
+  try { items = await provider.fetchRaceLogFull(); } catch { return; }
   for (const pid of poll.getTracked()) {
     const swaps = items.filter((x) => Number(x.pid) === pid && x.type === "DriverSwap");
     driverTimes[pid] = computeDriverStints(swaps, startMs, nowMs).byDriver;

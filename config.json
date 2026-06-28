@@ -1,4 +1,5 @@
 {
+  "provider": "griiip",
   "apiBase": "https://insights.griiip.com",
   "sessionId": 18130,
   "trackedParticipants": [400061],
