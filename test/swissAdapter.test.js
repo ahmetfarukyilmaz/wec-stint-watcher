@@ -11,7 +11,9 @@ const snap = { timing, detail };
 test("swissBuildCars: tüm araçları araç no + sınıf ile listeler", () => {
   const cars = swissBuildCars(snap);
   assert.ok(cars.length >= 60);
-  for (const c of cars.slice(0, 5)) {
+  const racing = cars.filter((c) => c.overall != null);
+  assert.ok(racing.length >= 60);
+  for (const c of racing.slice(0, 5)) {
     assert.equal(typeof c.carNumber, "string");
     assert.ok(c.classId);
     assert.equal(typeof c.overall, "number");
