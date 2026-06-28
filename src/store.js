@@ -7,6 +7,7 @@ export function createStore(dir) {
   const eventsPath = join(dir, "events.jsonl");
   const statePath = join(dir, "state.json");
   const driverTimesPath = join(dir, "driverTimes.json");
+  const stintStatePath = join(dir, "stintState.json");
 
   return {
     appendEvent(event) { appendFileSync(eventsPath, JSON.stringify(event) + "\n"); },
@@ -23,6 +24,11 @@ export function createStore(dir) {
     loadDriverTimes() {
       if (!existsSync(driverTimesPath)) return {};
       try { return JSON.parse(readFileSync(driverTimesPath, "utf8")); } catch { return {}; }
+    },
+    saveStintState(obj) { writeFileSync(stintStatePath, JSON.stringify(obj)); },
+    loadStintState() {
+      if (!existsSync(stintStatePath)) return {};
+      try { return JSON.parse(readFileSync(stintStatePath, "utf8")); } catch { return {}; }
     },
   };
 }

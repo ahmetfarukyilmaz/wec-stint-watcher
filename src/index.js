@@ -7,7 +7,9 @@ import { createSwissProvider } from "./providers/swiss.js";
 import { createPollClient } from "./pollClient.js";
 import { detectEvents, detectGlobalEvents, raceLogEvents } from "./eventDetector.js";
 import { computeDriverStints } from "./driverStints.js";
-import { makeCarState } from "./model.js";
+import { makeCarState, makeEvent } from "./model.js";
+import { createStintTracker } from "./stintTracker.js";
+import { assessDriverRules } from "./driverRules.js";
 import { buildStintSummary } from "./summary.js";
 import { createScheduler } from "./scheduler.js";
 import { createWebServer } from "./webServer.js";
@@ -31,16 +33,25 @@ if (swissDriverTimes) swissDriverTimes.load(store.loadDriverTimes()); // restart
 // Efektif takip = pinli ∪ otomatik sınıf ilk-N (her poll'da güncel araçlardan hesaplanır)
 const poll = createPollClient(cfg, provider, (cars) => tracking.effective(cars));
 
+const stintTracker = createStintTracker();
+stintTracker.load(store.loadStintState());
+const driverRuleStatus = new Map(); // pid -> son aktif sürücü status (geçiş tespiti)
+
 // Sürücü süreleri: pid -> { externalDriverID: saniye } (periyodik hesaplanır, aşağıda)
 const driverTimes = {};
 
 // Durumu pinli + sürücü süreleriyle dışa ver
 function stateOut() {
   const out = {};
+  const rulesOn = cfg.driverRules?.enabled !== false;
   for (const [pid, c] of stateMap) {
     const dt = driverTimes[pid] || {};
-    const drivers = (c.drivers || []).map((d) => ({ ...d, seconds: d.id != null ? (dt[d.id] ?? null) : null }));
-    out[pid] = { ...c, drivers, pinned: tracking.isPinned(pid) };
+    let drivers = (c.drivers || []).map((d) => ({ ...d, seconds: d.id != null ? (dt[d.id] ?? null) : null }));
+    if (rulesOn) {
+      const assessed = assessDriverRules(drivers, c.classId, cfg.driverRules);
+      drivers = drivers.map((d, i) => ({ ...d, rule: { status: assessed[i].status, maxSec: assessed[i].maxSec, pctOfMax: assessed[i].pctOfMax } }));
+    }
+    out[pid] = { ...c, drivers, stint: stintTracker.get(pid), pinned: tracking.isPinned(pid) };
   }
   return out;
 }
@@ -105,6 +116,33 @@ poll.onSnapshot((snapshot) => {
     }
     Object.assign(driverTimes, swissDriverTimes.all());
     store.saveDriverTimes(swissDriverTimes.dump()); // restart için kalıcılaştır
+  }
+
+  // Stint tracker besle + kalıcılaştır (her iki provider)
+  const nowTs = Date.now();
+  for (const pid of effective) {
+    const c = stateMap.get(pid);
+    if (!c) continue;
+    stintTracker.update(pid, { lap: c.lapNumber, lastLapMs: c.lastLapMs, inPit: c.inPit, pitCount: c.pitCount, nowMs: nowTs });
+  }
+  store.saveStintState(stintTracker.dump());
+
+  // Sürücü kural olayı: aktif sürücü warn/over'a geçince bir kez
+  if (cfg.driverRules?.enabled !== false) {
+    for (const pid of effective) {
+      const c = stateMap.get(pid);
+      if (!c) continue;
+      const dt = driverTimes[pid] || {};
+      const withSec = (c.drivers || []).map((d) => ({ ...d, seconds: d.id != null ? (dt[d.id] ?? null) : null }));
+      const active = assessDriverRules(withSec, c.classId, cfg.driverRules).find((d) => d.current);
+      if (!active) continue;
+      const prev = driverRuleStatus.get(pid) || "ok";
+      if (active.status !== prev && (active.status === "warn" || active.status === "over")) {
+        const ev = makeEvent("driver_rule", pid, { driver: active.name, status: active.status, seconds: Math.round(active.seconds ?? 0), maxSec: active.maxSec }, nowTs);
+        store.appendEvent(ev); web.broadcast(ev);
+      }
+      driverRuleStatus.set(pid, active.status);
+    }
   }
 
   // Artık efektif listede olmayan araçları durumdan düşür (otomatik rotasyon)
