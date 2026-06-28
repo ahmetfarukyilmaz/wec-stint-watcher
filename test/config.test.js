@@ -22,9 +22,25 @@ test("apiBase boşsa hata fırlatır", () => {
   rmSync(p);
 });
 
-test("trackedParticipants boşsa hata fırlatır", () => {
+test("trackedParticipants boş dizi geçerlidir", () => {
   const p = "config.bad2.json";
   writeFileSync(p, JSON.stringify({ ...base, trackedParticipants: [] }));
+  const cfg = loadConfig(p);
+  assert.deepEqual(cfg.trackedParticipants, []);
+  rmSync(p);
+});
+
+test("trackedParticipants dizi değilse hata fırlatır", () => {
+  const p = "config.bad3.json";
+  writeFileSync(p, JSON.stringify({ ...base, trackedParticipants: null }));
   assert.throws(() => loadConfig(p), /trackedParticipants/);
+  rmSync(p);
+});
+
+test("loadConfig: provider yoksa default griiip", () => {
+  const p = "test/.tmp-config.json";
+  writeFileSync(p, JSON.stringify({ apiBase: "x", sessionId: 1, trackedParticipants: [1], pollIntervalSeconds: 8 }));
+  const cfg = loadConfig(p);
+  assert.equal(cfg.provider ?? "griiip", "griiip");
   rmSync(p);
 });

@@ -1,0 +1,16 @@
+{
+  "provider": "swiss",
+  "tournament": "SRO",
+  "trackedParticipants": [],
+  "pollIntervalSeconds": 8,
+  "events": {
+    "position_change": true, "pit": true, "lap": true, "lap_completed": true,
+    "battle": true, "driver_change": true, "gap_threshold": true, "flag": true,
+    "weather": false, "racelog": true
+  },
+  "gapThresholdSeconds": 10,
+  "battleThresholdSeconds": 2,
+  "stintSummaryIntervalMinutes": 60,
+  "webPort": 3000,
+  "dataDir": "data-spa"
+}
