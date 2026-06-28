@@ -64,6 +64,17 @@ export function swissAdaptSnapshot(snap, trackedPids) {
   const remainingMs = parseClockMs(untInfo.RemainingTime);
   const raceClock = remainingMs != null ? { elapsedMs: null, totalMs: null, remainingMs } : null;
 
+  // Sınıf içi ClassRank'e göre sıralı competitorId listesi (komşu gap için)
+  const sectorCount = detail?.IntermediateDefinitionsCount || (untInfo.SectorFlags?.length) || 3;
+  const byClass = new Map(); // classId -> [{id, classRank, totalMs, laps, bib}]
+  for (const comp of Object.values(detail.Competitors ?? {})) {
+    const r = results[comp.Id]?.MainResult;
+    if (!r || r.ClassRank == null) continue;
+    if (!byClass.has(comp.ClassId)) byClass.set(comp.ClassId, []);
+    byClass.get(comp.ClassId).push({ id: comp.Id, classRank: r.ClassRank, totalMs: parseClockMs(r.TotalTime), laps: r.TotalLapCount, bib: comp.Bib });
+  }
+  for (const list of byClass.values()) list.sort((a, b) => a.classRank - b.classRank);
+
   const map = new Map();
   for (const pid of tracked) {
     const entry = byPid.get(pid);
@@ -97,6 +108,22 @@ export function swissAdaptSnapshot(snap, trackedPids) {
       gapToFirstMs = Math.max(0, myTotalMs - leaderTotalMs);
     }
 
+    // Sınıf komşusu gap (ahead/behind)
+    let gapAheadMs = null, gapBehindMs = null, aheadCarNumber = null, behindCarNumber = null;
+    const clist = byClass.get(comp.ClassId);
+    if (clist) {
+      const idx = clist.findIndex((x) => x.id === id);
+      const me = clist[idx];
+      const neighborGap = (other) => {
+        if (!other) return null;
+        if (me.laps != null && other.laps != null && me.laps !== other.laps) return null; // farklı tur → ms gap yok
+        if (me.totalMs == null || other.totalMs == null) return null;
+        return Math.abs(me.totalMs - other.totalMs);
+      };
+      if (idx > 0) { aheadCarNumber = clist[idx - 1].bib ?? null; gapAheadMs = neighborGap(clist[idx - 1]); }
+      if (idx >= 0 && idx < clist.length - 1) { behindCarNumber = clist[idx + 1].bib ?? null; gapBehindMs = neighborGap(clist[idx + 1]); }
+    }
+
     const best = res.BestTime ?? {};
 
     map.set(pid, makeCarState({
@@ -109,8 +136,10 @@ export function swissAdaptSnapshot(snap, trackedPids) {
       lastLapMs: parseLapMs(last.Time),
       bestLapMs: parseLapMs(best.Time),
       bestLapIsPurple: best.TimeState === 2,
-      gapAheadMs: null, // ahead hesabı v2 (komşu Rank); v1'de lidere fark gösterilir
-      gapBehindMs: null,
+      gapAheadMs: gapAheadMs,
+      gapBehindMs: gapBehindMs,
+      aheadCarNumber,
+      behindCarNumber,
       gapToFirstMs,
       inPit: comp.InPitLane === true,
       pitCount: comp.PitStopCount ?? 0,
@@ -127,7 +156,7 @@ export function swissAdaptSnapshot(snap, trackedPids) {
       raceClock,
       lastPit: null,
       stintLaps: null,
-      trackPositionPct: res.SectBasedPcntPos ?? null,
+      trackPositionPct: res.SectBasedPcntPos != null ? Math.min(1, Math.max(0, res.SectBasedPcntPos / sectorCount)) : null,
       manufacturer: comp.ManufacturerName ?? null,
       carType: comp.CarTypeName ?? null,
       gapToFirstLaps,

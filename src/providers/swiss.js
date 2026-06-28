@@ -11,9 +11,17 @@ export function createSwissProvider(cfg, fetchOverride) {
     fetchAll: () => api.fetchAll(),
     buildCars: (snap) => swissBuildCars(snap),
     adapt: (snap, pids) => swissAdaptSnapshot(snap, pids),
-    // Swiss Messages şekli Griiip raceLog'dan farklı (raceLogItemId/type yok) → v1'de boş.
-    // Race-control Messages eşlemesi v2 kapsamında.
-    raceLog: () => [],
+    // Swiss Messages'ı Griiip-benzeri RCMessage olaylarına map'le.
+    // Messages (Time, Text, Type) → raceLogItemId (Time|Text), type, text, lapNumber.
+    raceLog: (snap) => {
+      const msgs = snap.detail?.Messages ?? [];
+      return msgs.map((m) => ({
+        raceLogItemId: `${m.Time}|${m.Text}`,
+        type: "RCMessage",
+        text: m.Text ?? "",
+        lapNumber: null,
+      }));
+    },
     clock: (snap) => ({ remainingMs: parseClockMs(snap.timing?.UntInfo?.RemainingTime) }),
   };
 }

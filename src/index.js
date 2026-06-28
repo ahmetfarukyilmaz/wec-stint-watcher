@@ -11,6 +11,7 @@ import { makeCarState } from "./model.js";
 import { buildStintSummary } from "./summary.js";
 import { createScheduler } from "./scheduler.js";
 import { createWebServer } from "./webServer.js";
+import { createSwissDriverTimes } from "./swissDriverTimes.js";
 
 const cfg = loadConfig();
 const store = createStore(cfg.dataDir);
@@ -25,6 +26,7 @@ let globalPrev = { flag: null, sky: null, trackTemp: null };
 let globalSeeded = false;
 
 const provider = cfg.provider === "swiss" ? createSwissProvider(cfg) : createGriiipProvider(cfg);
+const swissDriverTimes = cfg.provider === "swiss" ? createSwissDriverTimes() : null;
 // Efektif takip = pinli ∪ otomatik sınıf ilk-N (her poll'da güncel araçlardan hesaplanır)
 const poll = createPollClient(cfg, provider, (cars) => tracking.effective(cars));
 
@@ -91,6 +93,16 @@ poll.onSnapshot((snapshot) => {
     const events = detectEvents(prev, next, cfg, Date.now());
     stateMap.set(pid, next);
     for (const ev of events) { store.appendEvent(ev); web.broadcast(ev); }
+  }
+
+  if (swissDriverTimes) {
+    const now = Date.now();
+    for (const pid of effective) {
+      const st = stateMap.get(pid);
+      const curDrv = st?.drivers?.find((d) => d.current);
+      if (curDrv?.id) swissDriverTimes.update(pid, curDrv.id, now);
+    }
+    Object.assign(driverTimes, swissDriverTimes.all());
   }
 
   // Artık efektif listede olmayan araçları durumdan düşür (otomatik rotasyon)
