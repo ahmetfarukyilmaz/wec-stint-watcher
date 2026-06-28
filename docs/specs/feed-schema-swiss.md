@@ -38,7 +38,7 @@ Canlı timing verisi ve laptiming.
 | Alan | Tip | Açıklama |
 |------|-----|----------|
 | `ChequeredFlag` | bool | İpli bayrağı (yarış bitti mi) |
-| `TrackFlag` | int | Pist durumu (yeşil=0, sarı=1, vs.) |
+| `TrackFlag` | int | Pist durumu (1=Yeşil doğrulanmış; 2=Sarı, 3=Kırmızı, 4=SafetyCar — doğrulanmamış) |
 | `StartRealTime` | string | Yarış başlama zamanı (ISO) |
 | `RemainingTime` | string | Kalan süre ("3:54:20" formatı) |
 | `SectorFlags` | array | Sektör bayrak durumları |

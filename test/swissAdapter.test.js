@@ -46,3 +46,40 @@ test("swissAdaptSnapshot: takip edilmeyen pid map'te yok", () => {
   const map = swissAdaptSnapshot(snap, [999999]);
   assert.equal(map.size, 0);
 });
+
+test("swissAdaptSnapshot: null MainResult ile çökmez (DNS/unclassified)", () => {
+  // Synthetic snap: bir araçta MainResult: null
+  const { timing, detail } = snap;
+  const syncSnap = {
+    timing: {
+      ...timing,
+      Results: {
+        ...timing.Results,
+        "null-main-result-id": {
+          ...Object.values(timing.Results)[0],
+          MainResult: null,
+        },
+      },
+    },
+    detail: {
+      ...detail,
+      Competitors: {
+        ...detail.Competitors,
+        "null-main-result-id": {
+          ...Object.values(detail.Competitors)[0],
+          Id: "null-main-result-id",
+        },
+      },
+    },
+  };
+  // Bir araç takip et (var olan bir tane)
+  const cars = swissBuildCars(snap);
+  const trackedPid = cars[0].pid;
+  // null MainResult'a rağmen uyarlamak çökmemeli
+  const map = swissAdaptSnapshot(syncSnap, [trackedPid]);
+  // Geçerli araç hala map'te olmalı
+  assert.ok(map.has(trackedPid));
+  const cs = map.get(trackedPid);
+  assert.ok(cs);
+  assert.equal(typeof cs.participantId, "number");
+});

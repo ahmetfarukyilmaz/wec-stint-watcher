@@ -52,7 +52,7 @@ export function swissAdaptSnapshot(snap, trackedPids) {
   const tracked = new Set(trackedPids.map(Number));
 
   // Gap referansı: lider (Rank 1) TotalTime + sınıf liderleri
-  const allResults = Object.values(results).map((x) => x.MainResult);
+  const allResults = Object.values(results).map((x) => x.MainResult).filter(Boolean);
   const overallLeader = allResults.find((r) => r.Rank === 1);
   const leaderTotalMs = parseClockMs(overallLeader?.TotalTime);
   const leaderLaps = overallLeader?.TotalLapCount ?? null;
