@@ -49,11 +49,23 @@ function applyClock(rc) {
 const CAT = { P: { label: "PLATINUM", cls: "p" }, G: { label: "GOLD", cls: "g" }, S: { label: "SILVER", cls: "s" }, B: { label: "BRONZE", cls: "b" } };
 function catBadge(cat, full) { const c = CAT[cat]; return c ? `<span class="cat ${c.cls}">${full ? c.label : cat}</span>` : ""; }
 function fmtHM(sec) { if (sec == null) return ""; const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60); return h ? `${h}:${String(m).padStart(2, "0")}` : `${m}dk`; }
+function stintText(st) {
+  if (!st) return "";
+  const deg = st.degradationMsPerLap != null ? `${st.degradationMsPerLap > 0 ? "+" : ""}${(st.degradationMsPerLap / 1000).toFixed(2)}s/tur` : "—";
+  const pit = st.lapsToPit != null ? `~${st.lapsToPit} turda pit` : "—";
+  return `Stint ${st.stintLaps} tur · ort ${fmtLapShort(st.avgPaceMs)} · deg ${deg} · ${pit}`;
+}
+function ruleBadge(rule) {
+  if (!rule || rule.status === "ok") return "";
+  const color = rule.status === "over" ? "#e10600" : "#f5a623";
+  const pct = rule.pctOfMax != null ? Math.round(rule.pctOfMax * 100) : "";
+  return `<span style="background:${color};color:#fff;border-radius:3px;padding:0 4px;font-size:10px;margin-left:4px">${pct}%${rule.status === "over" ? " ⚠" : ""}</span>`;
+}
 function lineupInner(drivers) {
   if (!drivers || !drivers.length) return "";
   return drivers.map((d) => {
     const t = d.seconds != null ? ` <span class="dt">${fmtHM(d.seconds)}</span>` : "";
-    return `<span class="d ${d.current ? "current" : ""}">${d.name}${catBadge(d.cat, false)}${t}</span>`;
+    return `<span class="d ${d.current ? "current" : ""}">${d.name}${catBadge(d.cat, false)}${t}${ruleBadge(d.rule)}</span>`;
   }).join("");
 }
 
@@ -196,6 +208,7 @@ function buildCard(pid) {
       <div class="cell"><div class="k">Pit</div><div class="v" data-f="pit"></div></div>
     </div>
     <div class="pitline" data-f="pitline"></div>
+    <div class="stintline" data-f="stintline" style="font-size:11px;color:var(--dim);padding:2px 8px 2px;min-height:14px"></div>
     <div class="sectors">
       <div class="sec" data-f="sec1"><div class="sk">S1</div><div class="sv"></div></div>
       <div class="sec" data-f="sec2"><div class="sk">S2</div><div class="sv"></div></div>
@@ -243,6 +256,7 @@ function updateCard(card, car) {
   setText(F.pit, car.pitCount ?? 0);
 
   setHTML(card, "pitline", pitlineInner(car));
+  setText(F.stintline, stintText(car.stint));
 
   for (const [f, n] of [["sec1", 1], ["sec2", 2], ["sec3", 3]]) {
     const s = (car.sectors || []).find((x) => x.num === n);
@@ -394,6 +408,7 @@ const META = {
   retired:       (p) => ({ ico: "⏹", accent: "var(--red)", txt: `<b>ÇEKİLDİ</b> · tur ${p.lap ?? "—"}` }),
   time_loss:     (p) => ({ ico: "⚠", accent: "var(--amber)", txt: `Zaman kaybı · tur ${p.lap}${p.diffMs != null ? ` · tempodan +${(p.diffMs / 1000).toFixed(1)}sn` : ""}` }),
   stint_summary: (p) => ({ ico: "Σ", accent: "var(--purple)", txt: `<b>Stint özeti</b> · sınıf P${p.classPosition} · ${p.pitCount} pit · en iyi ${fmtLap(p.bestLapMs)} · ${p.currentDriver ?? "—"}` }),
+  driver_rule:   (p) => ({ ico: "⏱", accent: p.status === "over" ? "var(--red)" : "var(--amber)", txt: `<b>${p.driver ?? "—"}</b> ${p.status === "over" ? "max süreyi aştı" : "max süreye yaklaştı"} (${Math.round((p.seconds ?? 0) / 60)}dk)` }),
 };
 const NOTIFY = new Set(["position_change", "pit_in", "pit_out", "best_lap", "fastest_lap", "battle_ahead", "battle_behind", "driver_change", "gap_threshold", "flag", "weather_change", "rc_message", "retired", "time_loss"]);
 
