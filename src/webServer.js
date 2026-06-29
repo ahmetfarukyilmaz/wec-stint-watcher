@@ -3,7 +3,7 @@ import express from "express";
 import { fileURLToPath } from "node:url";
 import { dirname, join, resolve } from "node:path";
 
-export function createWebServer({ port, host = "127.0.0.1", readOnly = false, getState, getEvents, getCars, getTracked, getTracking, setSmart, addCar, removeCar, publicDir }) {
+export function createWebServer({ port, host = "127.0.0.1", readOnly = false, getMeta, getState, getEvents, getCars, getTracked, getTracking, setSmart, addCar, removeCar, publicDir }) {
   const app = express();
   const clients = new Set();
   const root = publicDir ?? join(dirname(fileURLToPath(import.meta.url)), "..", "public");
@@ -15,6 +15,7 @@ export function createWebServer({ port, host = "127.0.0.1", readOnly = false, ge
     app.post(["/api/tracked", "/api/smart"], (_req, res) => res.status(403).json({ ok: false, error: "read-only" }));
   }
 
+  app.get("/api/meta", (_req, res) => res.json(getMeta ? getMeta() : { readOnly }));
   app.get("/api/state", (_req, res) => res.json(getState()));
   app.get("/api/events", (_req, res) => res.json(getEvents ? getEvents() : []));
   app.get("/api/cars", (_req, res) => res.json(getCars ? getCars() : []));

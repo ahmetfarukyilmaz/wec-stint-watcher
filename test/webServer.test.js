@@ -74,6 +74,15 @@ test("/api/cars ve /api/tracked + POST add/remove", async () => {
   await server.close();
 });
 
+test("/api/meta getMeta sonucunu döner", async () => {
+  const server = createWebServer({ port: 0, getState: () => ({}), publicDir: "public", getMeta: () => ({ provider: "swiss", series: "SRO LIVE", readOnly: true }) });
+  const { port } = await server.listen();
+  const meta = await (await fetch(`http://127.0.0.1:${port}/api/meta`)).json();
+  assert.equal(meta.series, "SRO LIVE");
+  assert.equal(meta.readOnly, true);
+  await server.close();
+});
+
 test("readOnly modunda POST uçları 403, GET açık", async () => {
   let tracked = [91];
   const server = createWebServer({

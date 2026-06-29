@@ -540,6 +540,23 @@ standingsEl.addEventListener("click", (e) => {
 /* ---------- init + SSE ---------- */
 function refreshState() { return fetch("/api/state").then((r) => r.json()).then((s) => { applyLiveness(s); renderBoard(s); }).catch(() => {}); }
 
+function loadMeta() {
+  return fetch("/api/meta").then((r) => r.json()).then((m) => {
+    const sub = document.querySelector(".brand .sub");
+    if (sub && m.series) sub.textContent = m.series;
+    const footer = document.querySelector("footer");
+    if (footer && m.source) footer.textContent = m.source;
+    if (m.readOnly) {
+      // salt-okunur: yazma kontrollerini gizle
+      const addForm = document.getElementById("addForm");
+      if (addForm) addForm.style.display = "none";
+      const smart = document.querySelector("nav.smart, .smart");
+      if (smart) smart.style.display = "none";
+    }
+  }).catch(() => {});
+}
+
+loadMeta();
 loadCars();
 loadSmart();
 if (new URLSearchParams(location.search).get("view") === "standings") switchView("standings");
@@ -564,7 +581,7 @@ if (location.search.includes("static")) {
     .then(() => fetch("/api/events").then((r) => r.json()).then((evs) => evs.forEach((ev) => addEvent(ev, true))).catch(() => {}))
     .finally(() => {
       const es = new EventSource("/events");
-      es.onopen = () => { statusEl.textContent = "canlı"; statusEl.className = "ok"; };
+      es.onopen = () => { statusEl.textContent = "bağlı"; statusEl.className = "ok"; };
       es.onerror = () => { statusEl.textContent = "bağlantı koptu"; statusEl.className = "bad"; };
       es.onmessage = (e) => {
         const ev = JSON.parse(e.data);

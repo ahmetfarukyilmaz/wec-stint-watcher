@@ -81,10 +81,16 @@ function addCar(carNumber) {
 }
 function removeCar(pid) { tracking.unpin(Number(pid)); return { ok: true }; }
 
+const readOnly = process.env.READ_ONLY === "true" || cfg.readOnly === true;
+const meta = cfg.provider === "swiss"
+  ? { provider: "swiss", series: `${cfg.tournament ?? "SRO"} LIVE`, source: "Swiss Timing · canlı poll", readOnly }
+  : { provider: "griiip", series: "FIA WEC LIVE", source: "insights.griiip.com · canlı poll", readOnly };
+
 const web = createWebServer({
   port: cfg.webPort,
   host: process.env.HOST || "127.0.0.1",
-  readOnly: process.env.READ_ONLY === "true" || cfg.readOnly === true,
+  readOnly,
+  getMeta: () => meta,
   getState: stateOut,
   getEvents: () => store.readEvents().slice(-400),
   getCars: () => poll.getCars(),
