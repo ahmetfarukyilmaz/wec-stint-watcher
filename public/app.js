@@ -40,7 +40,7 @@ function fmtSecs(ms) { return ms == null ? "—" : `${(ms / 1000).toFixed(1)}sn`
 const clockEl = document.getElementById("clock");
 const clockValEl = document.getElementById("clockVal");
 function applyClock(rc) {
-  if (!rc || rc.remainingMs == null) { clockEl.style.display = "none"; return; }
+  if (!rc || !rc.remainingMs) { clockEl.style.display = "none"; return; }
   clockEl.style.display = "";
   clockValEl.textContent = fmtDur(rc.remainingMs);
 }
@@ -300,6 +300,7 @@ function applyLiveness(state) {
   const live = raceIsLive(state);
   offlineEl.hidden = live;
   for (const id of HIDE_WHEN_OFFLINE) { const el = document.getElementById(id); if (el) el.style.display = live ? "" : "none"; }
+  for (const sel of ["nav.tabs", ".flagpill"]) { const el = document.querySelector(sel); if (el) el.style.display = live ? "" : "none"; }
   if (!live) {
     const first = state[Object.keys(state)[0]];
     offlineMetaEl.textContent = first?.flag === "Chequered" ? "Son oturum tamamlandı 🏁" : "Oturum bekleniyor…";
