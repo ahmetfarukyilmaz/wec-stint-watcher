@@ -73,3 +73,27 @@ test("/api/cars ve /api/tracked + POST add/remove", async () => {
 
   await server.close();
 });
+
+test("readOnly modunda POST uçları 403, GET açık", async () => {
+  let tracked = [91];
+  const server = createWebServer({
+    port: 0, readOnly: true, getState: () => ({}), publicDir: "public",
+    getTracked: () => tracked,
+    addCar: (n) => { tracked.push(Number(n)); return { ok: true }; },
+    setSmart: () => ({ ok: true }),
+  });
+  const { port } = await server.listen();
+  const base = `http://127.0.0.1:${port}`;
+
+  // GET çalışır
+  assert.deepEqual(await (await fetch(`${base}/api/tracked`)).json(), [91]);
+
+  // POST'lar reddedilir ve durum değişmez
+  const post = await fetch(`${base}/api/tracked`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ add: "92" }) });
+  assert.equal(post.status, 403);
+  const smart = await fetch(`${base}/api/smart`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ classId: null, topN: 5 }) });
+  assert.equal(smart.status, 403);
+  assert.deepEqual(await (await fetch(`${base}/api/tracked`)).json(), [91]);
+
+  await server.close();
+});

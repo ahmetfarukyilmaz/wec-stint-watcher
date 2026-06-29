@@ -2,6 +2,8 @@
   "provider": "swiss",
   "tournament": "SRO",
   "trackedParticipants": [],
+  "smartClass": null,
+  "smartTopN": 10,
   "pollIntervalSeconds": 8,
   "events": {
     "position_change": true, "pit": true, "lap": true, "lap_completed": true,

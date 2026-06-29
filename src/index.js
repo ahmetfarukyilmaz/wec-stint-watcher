@@ -18,6 +18,8 @@ import { createSwissDriverTimes } from "./swissDriverTimes.js";
 const cfg = loadConfig();
 const store = createStore(cfg.dataDir);
 const tracking = createTrackingStore(cfg.dataDir, cfg.trackedParticipants);
+// İlk açılışta config'den varsayılan akıllı takip (salt-okunur deploy'da UI olmadan dolu sayfa)
+if (cfg.smartTopN > 0 && tracking.getSmart().topN === 0) tracking.setSmart(cfg.smartClass ?? null, cfg.smartTopN);
 
 // Restart sonrası son durumu yükle
 const stateMap = new Map(Object.entries(store.loadState()).map(([k, v]) => [Number(k), v]));
@@ -81,6 +83,8 @@ function removeCar(pid) { tracking.unpin(Number(pid)); return { ok: true }; }
 
 const web = createWebServer({
   port: cfg.webPort,
+  host: process.env.HOST || "127.0.0.1",
+  readOnly: process.env.READ_ONLY === "true" || cfg.readOnly === true,
   getState: stateOut,
   getEvents: () => store.readEvents().slice(-400),
   getCars: () => poll.getCars(),

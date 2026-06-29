@@ -3,12 +3,17 @@ import express from "express";
 import { fileURLToPath } from "node:url";
 import { dirname, join, resolve } from "node:path";
 
-export function createWebServer({ port, getState, getEvents, getCars, getTracked, getTracking, setSmart, addCar, removeCar, publicDir }) {
+export function createWebServer({ port, host = "127.0.0.1", readOnly = false, getState, getEvents, getCars, getTracked, getTracking, setSmart, addCar, removeCar, publicDir }) {
   const app = express();
   const clients = new Set();
   const root = publicDir ?? join(dirname(fileURLToPath(import.meta.url)), "..", "public");
   app.use(express.json());
   app.use(express.static(resolve(root)));
+
+  // Salt-okunur modda yazma uçlarını kapat (public deploy).
+  if (readOnly) {
+    app.post(["/api/tracked", "/api/smart"], (_req, res) => res.status(403).json({ ok: false, error: "read-only" }));
+  }
 
   app.get("/api/state", (_req, res) => res.json(getState()));
   app.get("/api/events", (_req, res) => res.json(getEvents ? getEvents() : []));
@@ -36,7 +41,7 @@ export function createWebServer({ port, getState, getEvents, getCars, getTracked
   let httpServer = null;
   return {
     listen() {
-      return new Promise((res) => { httpServer = app.listen(port, "127.0.0.1", () => res({ port: httpServer.address().port })); });
+      return new Promise((res) => { httpServer = app.listen(port, host, () => res({ port: httpServer.address().port })); });
     },
     broadcast(payload) {
       const line = `data: ${JSON.stringify(payload)}\n\n`;
