@@ -544,8 +544,6 @@ function loadMeta() {
   return fetch("/api/meta").then((r) => r.json()).then((m) => {
     const sub = document.querySelector(".brand .sub");
     if (sub && m.series) sub.textContent = m.series;
-    const footer = document.querySelector("footer");
-    if (footer && m.source) footer.textContent = m.source;
     if (m.readOnly) {
       // salt-okunur: yazma kontrollerini gizle
       const addForm = document.getElementById("addForm");
