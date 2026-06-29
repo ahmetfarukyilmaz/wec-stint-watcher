@@ -282,50 +282,29 @@ function updateCard(card, car) {
   }
 }
 
-/* ---------- pist haritası ---------- */
-const CLASS_COLORS = { Pro: "#e10600", Gold: "#d4af37", Silver: "#9aa0a6", Bronze: "#cd7f32", Pam: "#1e88e5" };
-function classColor(classId) { return CLASS_COLORS[classId] || "#26c281"; }
-
-function renderTrackMap(state) {
-  const panel = document.getElementById("trackmap-panel");
-  const path = document.getElementById("trackpath");
-  const g = document.getElementById("trackmap-cars");
-  if (!panel || !path || !g) return;
-  const cars = Object.values(state).filter((c) => c.trackPositionPct != null);
-  if (!cars.length) { panel.style.display = "none"; return; }
-  panel.style.display = "";
-  const total = path.getTotalLength();
-  // mevcut işaretçileri pid bazında güncelle (titreme yok)
-  const seen = new Set();
-  for (const c of cars) {
-    const pid = c.participantId;
-    seen.add(String(pid));
-    const pt = path.getPointAtLength(Math.max(0, Math.min(1, c.trackPositionPct)) * total);
-    let grp = g.querySelector(`[data-pid="${pid}"]`);
-    if (!grp) {
-      grp = document.createElementNS("http://www.w3.org/2000/svg", "g");
-      grp.setAttribute("data-pid", String(pid));
-      const dot = document.createElementNS("http://www.w3.org/2000/svg", "circle");
-      dot.setAttribute("r", "11");
-      const label = document.createElementNS("http://www.w3.org/2000/svg", "text");
-      label.setAttribute("text-anchor", "middle");
-      label.setAttribute("dy", "4");
-      label.setAttribute("font-size", "11");
-      label.setAttribute("fill", "#fff");
-      grp.appendChild(dot); grp.appendChild(label);
-      g.appendChild(grp);
-    }
-    grp.querySelector("circle").setAttribute("cx", pt.x);
-    grp.querySelector("circle").setAttribute("cy", pt.y);
-    grp.querySelector("circle").setAttribute("fill", classColor(c.classId));
-    grp.querySelector("circle").setAttribute("stroke", c.pinned ? "#fff" : "none");
-    grp.querySelector("circle").setAttribute("stroke-width", c.pinned ? "2" : "0");
-    const label = grp.querySelector("text");
-    label.setAttribute("x", pt.x); label.setAttribute("y", pt.y);
-    label.textContent = c.carNumber ?? "";
+/* ---------- canlı yarış tespiti + offline ekranı ---------- */
+const LIVE_FLAGS = new Set(["Green", "Yellow", "Red", "SafetyCar"]);
+function raceIsLive(state) {
+  const pids = Object.keys(state);
+  if (!pids.length) return false;
+  const first = state[pids[0]];
+  const rem = first?.raceClock?.remainingMs;
+  if (rem != null && rem > 0) return true;   // saat işliyor → canlı
+  if (LIVE_FLAGS.has(first?.flag)) return true; // canlı bayrak
+  return false;                                // chequered / saat 0 / sinyal yok
+}
+const offlineEl = document.getElementById("offline");
+const offlineMetaEl = document.getElementById("offlineMeta");
+const HIDE_WHEN_OFFLINE = ["board", "standings", "globalfeed", "weather"];
+function applyLiveness(state) {
+  const live = raceIsLive(state);
+  offlineEl.hidden = live;
+  for (const id of HIDE_WHEN_OFFLINE) { const el = document.getElementById(id); if (el) el.style.display = live ? "" : "none"; }
+  if (!live) {
+    const first = state[Object.keys(state)[0]];
+    offlineMetaEl.textContent = first?.flag === "Chequered" ? "Son oturum tamamlandı 🏁" : "Oturum bekleniyor…";
   }
-  // artık listede olmayanları kaldır
-  for (const grp of [...g.children]) if (!seen.has(grp.getAttribute("data-pid"))) grp.remove();
+  return live;
 }
 
 /* ---------- panel yönetimi (araç başına kart + feed) ---------- */
@@ -558,7 +537,7 @@ standingsEl.addEventListener("click", (e) => {
 });
 
 /* ---------- init + SSE ---------- */
-function refreshState() { return fetch("/api/state").then((r) => r.json()).then((s) => { renderBoard(s); renderTrackMap(s); }).catch(() => {}); }
+function refreshState() { return fetch("/api/state").then((r) => r.json()).then((s) => { applyLiveness(s); renderBoard(s); }).catch(() => {}); }
 
 loadCars();
 loadSmart();
@@ -588,7 +567,7 @@ if (location.search.includes("static")) {
       es.onerror = () => { statusEl.textContent = "bağlantı koptu"; statusEl.className = "bad"; };
       es.onmessage = (e) => {
         const ev = JSON.parse(e.data);
-        if (ev.type === "tick") { renderBoard(ev.state); renderTrackMap(ev.state); if (currentView === "standings") renderStandings(); return; }
+        if (ev.type === "tick") { const live = applyLiveness(ev.state); renderBoard(ev.state); if (live && currentView === "standings") renderStandings(); return; }
         if (ev.type === "flag") applyFlag(ev.payload.to);
         addEvent(ev);
       };
