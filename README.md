@@ -1,5 +1,7 @@
 # WEC Stint Watcher
 
+**Live:** https://timing.thefcompass.com
+
 I built this because the existing live timing tools didn't give me what I
 wanted, so I made my own.
 
