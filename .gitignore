@@ -1,3 +1,7 @@
 node_modules/
 data/
+data-spa/
+data-test/
+data-tracked-test/
+data-tracking-test/
 *.log

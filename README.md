@@ -1,28 +1,30 @@
 # WEC Stint Watcher
 
-FIA WEC 24h yarışında bir aracı (varsayılan: #91 Manthey, pid 400061) izleyip önemli
-olaylarda tarayıcı bildirimi veren ve periyodik stint özeti üreten 7/24 Node.js servisi.
-Veri kaynağı: Griiip açık REST API (insights.griiip.com), polling ile.
+I built this because the existing live timing tools didn't give me what I
+wanted, so I made my own.
 
-## Kurulum
+A 24/7 Node.js service that watches a live endurance race timing feed, fires
+browser notifications on notable events, and tracks driver stints. It polls the
+timing provider and pushes updates to a small web UI over Server-Sent Events.
+
+Despite the name, it isn't WEC-only — it works across endurance series through
+pluggable timing providers (currently Spa 24 Hours / GT World Challenge and
+FIA WEC).
+
+## Run
+
+```bash
 npm install
-
-## Çalıştır
 npm start
-# http://127.0.0.1:3000 — "Bildirimleri aç"a bas
+# open http://127.0.0.1:3000 and click "Enable notifications"
+```
 
-## Yapılandırma — config.json
-- apiBase: API kökü (https://insights.griiip.com)
-- sessionId: izlenecek oturum (örn. 18130)
-- trackedParticipants: takip edilecek araç pid'leri (ilk sürüm tek araç)
-- pollIntervalSeconds: poll aralığı (sn)
-- events: olay türü başına aç/kapa
-- gapThresholdSeconds: gap eşiği
-- stintSummaryIntervalMinutes: özet aralığı
+Requires Node.js >= 18. Behavior is configured in `config.json` (provider,
+poll interval, which events to notify on, tracked cars). See
+`config.swiss.example.json` for a Spa 24h starting point.
 
 ## Test
-npm test
 
-## Mimari
-pollClient (REST poll) -> adapter (CarState) -> eventDetector (diff) -> store + webServer (SSE) -> tarayıcı
-Şema/endpoint detayları: docs/specs/feed-schema.md
+```bash
+npm test
+```
